@@ -10,7 +10,6 @@ export interface Question {
   type: 'pg' | 'isian' | 'uraian';
   text: string;
   options?: QuestionOption[];
-  correctAnswer?: string;
   bobot: number;
   tingkatKesulitan?: string;
   pembahasan: string;
@@ -22,10 +21,10 @@ export interface Question {
 export interface EditorHeaderState {
   logoLeft: string;
   logoRight: string;
+  foundationName: string;
   schoolName: string;
   schoolAddress: string;
   schoolContact: string; // "Telp. (021) 1234567 | www.sdncemerlang.sch.id"
-  schoolEmail: string; // "info@sdncemerlang.sch.id"
   judulUjian: string;
   mataPelajaran: string;
   kelas: string;
@@ -50,7 +49,7 @@ interface EditorState {
   questions: Question[];
   pdfSettings: PdfSettings;
   setHeaderField: (field: keyof EditorHeaderState, value: string) => void;
-  addQuestion: (type: Question['type']) => void;
+  addQuestion: (type: Question['type'], data?: Partial<Question>) => void;
   updateQuestion: (id: string, updates: Partial<Question>) => void;
   deleteQuestion: (id: string) => void;
   updateOption: (questionId: string, optionIndex: number, text: string) => void;
@@ -61,10 +60,10 @@ export const useEditorStore = create<EditorState>((set) => ({
   header: {
     logoLeft: '',
     logoRight: '',
+    foundationName: 'YAYASAN WAKAF MASJID NURUL KAUTSAR',
     schoolName: 'SD IT NURUL KAUTSAR',
     schoolAddress: 'Jl. Andi Mangerangi No. 47, Makassar, Indonesia',
-    schoolContact: 'Telp. 082344659435',
-    schoolEmail: 'Email: sditnurulkautsarbalbod@gmail.com',
+    schoolContact: 'Telp. 082344659435 I Email: sditnurulkautsarbalbod@gmail.com',
     judulUjian: '',
     mataPelajaran: '',
     kelas: '',
@@ -86,17 +85,17 @@ export const useEditorStore = create<EditorState>((set) => ({
   setHeaderField: (field, value) => set((state) => ({
     header: { ...state.header, [field]: value }
   })),
-  addQuestion: (type) => set((state) => ({
+  addQuestion: (type, data) => set((state) => ({
     questions: [
       ...state.questions,
       {
-        id: Date.now().toString(),
+        id: data?.id || Date.now().toString(),
         type,
-        text: '',
-        options: type === 'pg' ? [{id: 'A', text: ''},{id: 'B', text: ''},{id: 'C', text: ''},{id: 'D', text: ''}] : undefined,
-        correctAnswer: 'A',
-        bobot: 1,
-        pembahasan: ''
+        text: data?.text || '',
+        options: data?.options || (type === 'pg' ? [{id: 'A', text: ''},{id: 'B', text: ''},{id: 'C', text: ''},{id: 'D', text: ''}] : undefined),
+        bobot: data?.bobot || 1,
+        tingkatKesulitan: data?.tingkatKesulitan || 'Sedang',
+        pembahasan: data?.pembahasan || ''
       }
     ]
   })),

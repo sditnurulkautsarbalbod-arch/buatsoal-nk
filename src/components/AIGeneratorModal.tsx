@@ -51,7 +51,9 @@ export function AIGeneratorModal({ isOpen, onClose }: AIGeneratorModalProps) {
       const prompt = `Buatkan ${totalQuestions} soal ${header.mataPelajaran} tingkat ${header.kelas} tentang topik "${topic}". 
       Komposisi jenis soal:
       ${counts.pg > 0 ? `- ${counts.pg} soal Pilihan Ganda (type: "pg")\n` : ''}${counts.isian > 0 ? `- ${counts.isian} soal Isian (type: "isian")\n` : ''}${counts.uraian > 0 ? `- ${counts.uraian} soal Uraian (type: "uraian")\n` : ''}
-      Format hasilnya dalam JSON array flat dengan struktur object di bawah ini. Harap beri "type" berupa string persis seperti referensi di atas:
+      
+      Format hasilnya dalam JSON array flat dengan struktur object di bawah ini.
+      
       [
         {
           "type": "pg", // "pg", "isian", atau "uraian"
@@ -63,15 +65,15 @@ export function AIGeneratorModal({ isOpen, onClose }: AIGeneratorModalProps) {
              {"id": "C", "text": "Pilihan C"}, 
              {"id": "D", "text": "Pilihan D"}
           ],
-          "correctAnswer": "A", // Sesuaikan correctAnswer.
-          "pembahasan": "Pembahasan singkat"
+          "pembahasan": "Penjelasan detail tentang materi ini"
         }
       ]
-      Kembalikan HANYA array JSON yang valid tanpa backticks markdown atau teks tambahan. Pastikan jawabannya relevan dengan materi sekolah tingkat ${header.kelas}.`;
+      
+      Kembalikan HANYA array JSON yang valid tanpa backticks markdown atau teks tambahan. Pastikan jawabannya akurat dan relevan dengan kurikulum SD kelas ${header.kelas}.`;
 
-      // Depending on the version of google gen ai sdk
+      // Generating content using the @google/genai SDK
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: "gemini-3-flash-preview",
         contents: prompt
       });
 
@@ -84,21 +86,14 @@ export function AIGeneratorModal({ isOpen, onClose }: AIGeneratorModalProps) {
       }
 
       generatedQuestions.forEach(q => {
-        useEditorStore.setState(state => ({
-           questions: [
-             ...state.questions,
-             {
-               id: Date.now().toString() + Math.random().toString(36).substring(7),
-               type: q.type || 'pg',
-               text: q.text,
-               options: q.options || [],
-               correctAnswer: q.correctAnswer || 'A',
-               bobot: 1,
-               tingkatKesulitan: 'Sedang',
-               pembahasan: q.pembahasan || ''
-             }
-           ]
-        }));
+        addQuestion(q.type || 'pg', {
+          id: Date.now().toString() + Math.random().toString(36).substring(7),
+          text: q.text,
+          options: q.options || [],
+          bobot: 1,
+          tingkatKesulitan: 'Sedang',
+          pembahasan: q.pembahasan || ''
+        });
       });
 
       onClose();

@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useEditorStore } from '@/store/useEditorStore';
 import { useDraftStore } from '@/store/useDraftStore';
-import { useSearchParams } from 'react-router-dom';
+import { useAdminStore } from '@/store/useAdminStore';
+import { useAuthStore } from '@/store/useAuthStore';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Sparkles, Check, MoreVertical, ChevronLeft, Image as ImageIcon, ChevronDown, Plus, Minus, Maximize2, Trash2, ListTodo, AlignLeft, FileText, FileCheck2, Table, Upload, Trello, Menu, Activity, Bell, Search, Download, X, Settings, Printer, Save, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/Button';
@@ -11,7 +13,10 @@ import { cloudflareService } from '@/services/cloudflareService';
 export default function EditorPage() {
   const { header, setHeaderField, questions, addQuestion, updateQuestion, updateOption, deleteQuestion, pdfSettings, setPdfSetting } = useEditorStore();
   const { drafts, saveDraft } = useDraftStore();
+  const { options } = useAdminStore();
+  const { user } = useAuthStore();
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const draftId = searchParams.get('id');
 
   const [zoom, setZoom] = useState(100);
@@ -32,12 +37,7 @@ export default function EditorPage() {
     prevQuestionsLengthRef.current = questions.length;
   }, [questions.length, activeQuestionIndex]);
 
-  const ITEMS_PER_PAGE = 5;
-  const pages = [];
-  for (let i = 0; i < questions.length; i += ITEMS_PER_PAGE) {
-     pages.push(questions.slice(i, i + ITEMS_PER_PAGE));
-  }
-  if (pages.length === 0) pages.push([]);
+  const pages = [questions];
   const [currentPage, setCurrentPage] = useState(1);
   const totalPages = pages.length;
 
@@ -207,10 +207,10 @@ export default function EditorPage() {
 
                 {/* School Details */}
                 <div className="flex-1 flex flex-col justify-center items-center gap-1.5">
-                  <input className="text-sm font-bold text-center w-full bg-transparent border border-transparent hover:border-slate-300 focus:outline-none focus:border-blue-500 rounded px-1 transition-colors" value={header.schoolName} onChange={(e) => setHeaderField('schoolName', e.target.value)} />
-                  <input className="text-[10px] text-center w-full bg-transparent border border-transparent hover:border-slate-300 focus:outline-none focus:border-blue-500 rounded px-1 transition-colors" value={header.schoolAddress} onChange={(e) => setHeaderField('schoolAddress', e.target.value)} />
-                  <input className="text-[10px] text-center w-full bg-transparent border border-transparent hover:border-slate-300 focus:outline-none focus:border-blue-500 rounded px-1 transition-colors" value={header.schoolContact} onChange={(e) => setHeaderField('schoolContact', e.target.value)} />
-                  <input className="text-[10px] text-center w-full bg-transparent border border-transparent hover:border-slate-300 focus:outline-none focus:border-blue-500 rounded px-1 transition-colors" value={header.schoolEmail} onChange={(e) => setHeaderField('schoolEmail', e.target.value)} />
+                  <input className="text-[11px] font-bold text-center w-full bg-transparent border border-transparent hover:border-slate-300 focus:outline-none focus:border-blue-500 rounded px-1 transition-colors uppercase" value={header.foundationName} onChange={(e) => setHeaderField('foundationName', e.target.value)} placeholder="Nama Yayasan" />
+                  <input className="text-sm font-bold text-center w-full bg-transparent border border-transparent hover:border-slate-300 focus:outline-none focus:border-blue-500 rounded px-1 transition-colors uppercase" value={header.schoolName} onChange={(e) => setHeaderField('schoolName', e.target.value)} placeholder="Nama Sekolah" />
+                  <input className="text-[10px] text-center w-full bg-transparent border border-transparent hover:border-slate-300 focus:outline-none focus:border-blue-500 rounded px-1 transition-colors" value={header.schoolAddress} onChange={(e) => setHeaderField('schoolAddress', e.target.value)} placeholder="Alamat Sekolah" />
+                  <input className="text-[10px] text-center w-full bg-transparent border border-transparent hover:border-slate-300 focus:outline-none focus:border-blue-500 rounded px-1 transition-colors" value={header.schoolContact} onChange={(e) => setHeaderField('schoolContact', e.target.value)} placeholder="Kontak & Email Sekolah" />
                 </div>
 
                 {/* Logo Right */}
@@ -228,34 +228,73 @@ export default function EditorPage() {
                 </div>
               </div>
 
-              {/* Form Metadata */}
               <div className="mt-5 grid grid-cols-2 gap-4">
                 <div className="col-span-2 md:col-span-1">
                   <label className="text-[11px] font-semibold text-slate-500 mb-1.5 block">Header Soal</label>
-                  <input className="w-full text-sm p-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all placeholder:text-slate-400" value={header.judulUjian} onChange={(e) => setHeaderField('judulUjian', e.target.value)} />
+                  <div className="relative">
+                    <select 
+                      className="w-full appearance-none text-sm p-2.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all pr-8"
+                      value={header.judulUjian} 
+                      onChange={(e) => setHeaderField('judulUjian', e.target.value)}
+                    >
+                      <option value="">-- Pilih Header --</option>
+                      {options.judulUjian.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                    </select>
+                    <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  </div>
                 </div>
                 <div className="col-span-2 md:col-span-1">
                   <label className="text-[11px] font-semibold text-slate-500 mb-1.5 block">Mata Pelajaran</label>
-                  <input className="w-full text-sm p-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all placeholder:text-slate-400" value={header.mataPelajaran} onChange={(e) => setHeaderField('mataPelajaran', e.target.value)} />
+                  <div className="relative">
+                    <select 
+                      className="w-full appearance-none text-sm p-2.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all pr-8"
+                      value={header.mataPelajaran} 
+                      onChange={(e) => setHeaderField('mataPelajaran', e.target.value)}
+                    >
+                      <option value="">-- Pilih Mata Pelajaran --</option>
+                      {options.mataPelajaran.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                    </select>
+                    <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  </div>
                 </div>
                 <div>
                   <label className="text-[11px] font-semibold text-slate-500 mb-1.5 block">Kelas</label>
-                  <input className="w-full text-sm p-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all placeholder:text-slate-400" value={header.kelas} onChange={(e) => setHeaderField('kelas', e.target.value)} />
+                  <div className="relative">
+                    <select 
+                      className="w-full appearance-none text-sm p-2.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all pr-8"
+                      value={header.kelas} 
+                      onChange={(e) => setHeaderField('kelas', e.target.value)}
+                    >
+                      <option value="">-- Pilih Kelas --</option>
+                      {options.kelas.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                    </select>
+                    <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  </div>
                 </div>
 
                 <div>
                   <label className="text-[11px] font-semibold text-slate-500 mb-1.5 block">Tahun Ajaran</label>
                   <div className="relative">
                      <select className="w-full appearance-none text-sm p-2.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all pr-8" value={header.tahunAjaran} onChange={(e) => setHeaderField('tahunAjaran', e.target.value)}>
-                       <option value="2023/2024">2023/2024</option>
-                       <option value="2024/2025">2024/2025</option>
+                       <option value="">-- Pilih Tahun Ajaran --</option>
+                       {options.tahunAjaran.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                      </select>
                      <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                   </div>
                 </div>
                 <div>
                   <label className="text-[11px] font-semibold text-slate-500 mb-1.5 block">Waktu</label>
-                  <input className="w-full text-sm p-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all placeholder:text-slate-400" value={header.waktu} onChange={(e) => setHeaderField('waktu', e.target.value)} />
+                  <div className="relative">
+                    <select 
+                      className="w-full appearance-none text-sm p-2.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all pr-8"
+                      value={header.waktu} 
+                      onChange={(e) => setHeaderField('waktu', e.target.value)}
+                    >
+                      <option value="">-- Pilih Waktu --</option>
+                      {options.waktu.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                    </select>
+                    <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  </div>
                 </div>
               </div>
             </div>
@@ -357,14 +396,8 @@ export default function EditorPage() {
                         {q.options.map((opt, oIdx) => (
                           <div 
                             key={opt.id} 
-                            className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${q.correctAnswer === opt.id ? 'border-green-500 bg-green-50 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300'}`}
+                            className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300"
                           >
-                             <button 
-                               onClick={() => updateQuestion(q.id, { correctAnswer: opt.id })}
-                               className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 transition-colors ${q.correctAnswer === opt.id ? 'border-green-500 text-green-600 bg-white' : 'border-slate-300 text-transparent hover:border-slate-400'}`}
-                             >
-                                <Check className="w-3 h-3" />
-                             </button>
                              <span className="text-sm font-semibold text-slate-400 w-4">{opt.id}.</span>
                              <input 
                                className="text-sm bg-transparent border-none flex-1 focus:ring-0 p-0 text-slate-700 font-medium focus:outline-none" 
@@ -372,25 +405,11 @@ export default function EditorPage() {
                                onChange={(e) => updateOption(q.id, oIdx, e.target.value)}
                                placeholder={`Opsi ${opt.id}`}
                              />
-                             {q.correctAnswer === opt.id && <Check className="w-4 h-4 text-green-600 shrink-0" />}
                           </div>
                         ))}
                       </div>
                     )}
 
-                    {/* Meta: Kunci */}
-                    <div className="grid grid-cols-1 gap-4 border-t border-slate-100 pt-5 mt-2">
-                      <div>
-                        <label className="text-[11px] font-semibold text-slate-500 mb-1.5 block">Kunci Jawaban</label>
-                        <select 
-                          className="w-full text-sm p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500"
-                          value={q.correctAnswer}
-                          onChange={(e) => updateQuestion(q.id, { correctAnswer: e.target.value })}
-                        >
-                          {q.options?.map(o => <option key={o.id} value={o.id}>{o.id}</option>)}
-                        </select>
-                      </div>
-                    </div>
                     
                     {/* Pembahasan */}
                     <div className="pt-2">
@@ -467,21 +486,26 @@ export default function EditorPage() {
             </div>
             
             <div className="flex items-center gap-3">
-               <button 
-                  disabled={currentPage <= 1}
-                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                  className="p-1.5 hover:bg-slate-100 text-slate-600 rounded transition-colors disabled:opacity-50"
-               >
-                  <ChevronLeft className="w-4 h-4" />
-               </button>
-               <span className="text-xs font-bold text-slate-700 select-none">Halaman {currentPage} dari {totalPages}</span>
-               <button 
-                  disabled={currentPage >= totalPages}
-                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                  className="p-1.5 hover:bg-slate-100 text-slate-600 rounded transition-colors disabled:opacity-50"
-               >
-                  <ChevronLeft className="w-4 h-4 rotate-180" />
-               </button>
+               {totalPages > 1 && (
+                 <>
+                   <button 
+                      disabled={currentPage <= 1}
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      className="p-1.5 hover:bg-slate-100 text-slate-600 rounded transition-colors disabled:opacity-50"
+                   >
+                      <ChevronLeft className="w-4 h-4" />
+                   </button>
+                   <span className="text-xs font-bold text-slate-700 select-none">Halaman {currentPage} dari {totalPages}</span>
+                   <button 
+                      disabled={currentPage >= totalPages}
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      className="p-1.5 hover:bg-slate-100 text-slate-600 rounded transition-colors disabled:opacity-50"
+                   >
+                      <ChevronLeft className="w-4 h-4 rotate-180" />
+                   </button>
+                 </>
+               )}
+               {totalPages <= 1 && <span className="text-xs font-bold text-slate-700 select-none">Tampilan Dokumen</span>}
             </div>
           </div>
 
@@ -537,10 +561,10 @@ export default function EditorPage() {
                                 {header.logoLeft && <img src={header.logoLeft} alt="Logo" className="w-auto h-20 lg:h-24 object-contain" />}
                               </div>
                               <div className="flex-1 text-center flex flex-col justify-center">
+                                 {header.foundationName && <h4 className="font-bold text-sm lg:text-base uppercase tracking-wide leading-tight">{header.foundationName}</h4>}
                                  <h2 className="font-bold text-lg lg:text-xl uppercase tracking-wider">{header.schoolName}</h2>
                                  <p className="text-sm leading-snug">{header.schoolAddress}</p>
                                  <p className="text-sm leading-snug">{header.schoolContact}</p>
-                                 <p className="text-sm leading-snug">{header.schoolEmail}</p>
                               </div>
                               <div className="w-20 lg:w-24 shrink-0 flex items-center justify-center">
                                 {header.logoRight && <img src={header.logoRight} alt="Logo" className="w-auto h-20 lg:h-24 object-contain" />}
@@ -548,18 +572,18 @@ export default function EditorPage() {
                            </div>
         
                            {/* Title Render */}
-                           <div className="text-center mb-8">
+                           <div className="text-center mb-8 leading-[1.15]">
                               <h3 className="font-bold text-base lg:text-lg uppercase tracking-wider mb-1">{header.judulUjian}</h3>
                               <h3 className="font-bold text-base lg:text-lg uppercase tracking-wider">TAHUN AJARAN {header.tahunAjaran}</h3>
                            </div>
         
                            {/* Meta Details */}
-                           <div className="grid grid-cols-2 max-w-2xl text-justify mb-8 px-4 gap-x-12">
-                              <div className="space-y-3">
+                           <div className="grid grid-cols-2 max-w-2xl text-justify mb-8 px-4 gap-x-12 leading-[1.15]">
+                              <div className="space-y-2">
                                  <div className="flex"><span className="w-32 font-medium">Mata Pelajaran</span><span className="mx-2">:</span><span>{header.mataPelajaran}</span></div>
                                  <div className="flex"><span className="w-32 font-medium">Kelas</span><span className="mx-2">:</span><span>{header.kelas}</span></div>
                               </div>
-                              <div className="space-y-3">
+                              <div className="space-y-2">
                                  <div className="flex"><span className="w-24 font-medium">Nama</span><span className="mx-2">:</span><span className="flex-1 border-b border-black border-dotted mr-4"></span></div>
                                  <div className="flex"><span className="w-24 font-medium">Waktu</span><span className="mx-2">:</span><span>{header.waktu}</span></div>
                               </div>
@@ -568,7 +592,7 @@ export default function EditorPage() {
                        )}
     
                        {/* Questions Block */}
-                       <div className="space-y-6 flex-1">
+                       <div className="space-y-6 flex-1 leading-[1.15]">
                          {(['pg', 'isian', 'uraian'] as const).map(type => {
                            const group = pageQuestions.filter(q => q.type === type);
                            if (group.length === 0) return null;

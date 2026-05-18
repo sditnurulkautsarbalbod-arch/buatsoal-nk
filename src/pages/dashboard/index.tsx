@@ -1,3 +1,4 @@
+import React, { useEffect } from 'react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useDraftStore } from '@/store/useDraftStore';
 import { Card } from '@/components/ui/Card'; // Will create this
@@ -9,6 +10,14 @@ export default function Dashboard() {
   const { user } = useAuthStore();
   const { drafts, deleteDraft } = useDraftStore();
   const isAdmin = user?.role === 'admin';
+
+  // One-time cleanup for the specific draft the user wants to remove
+  useEffect(() => {
+    const draftToRemove = drafts.find(d => d.title === 'Penilaian Akhir Semester Genap');
+    if (draftToRemove) {
+      deleteDraft(draftToRemove.id);
+    }
+  }, [drafts.length, deleteDraft]);
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">

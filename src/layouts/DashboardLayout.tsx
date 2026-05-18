@@ -43,6 +43,7 @@ export default function DashboardLayout() {
 
   const navItems = [
     { name: 'Dashboard', href: '/', icon: Home, adminOnly: false },
+    { name: 'Admin Panel', href: '/admin', icon: Settings, adminOnly: true },
     { name: 'Editor Soal', href: '/editor', icon: FileText, adminOnly: false },
     { name: 'Bank Soal', href: '/bank-soal', icon: BookOpen, adminOnly: false },
     { name: 'Pengaturan', href: '/pengaturan', icon: Settings, adminOnly: false },

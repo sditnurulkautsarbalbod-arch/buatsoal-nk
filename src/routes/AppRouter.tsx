@@ -6,6 +6,7 @@ import {
 import DashboardLayout from '@/layouts/DashboardLayout';
 import LoginPage from '@/pages/auth/Login';
 import Dashboard from '@/pages/dashboard';
+import AdminDashboard from '@/pages/dashboard/AdminDashboard';
 import EditorPage from '@/pages/editor';
 import BankSoalPage from '@/pages/bank-soal';
 import SettingsPage from '@/pages/settings';
@@ -34,6 +35,10 @@ const router = createBrowserRouter([
       {
         path: 'pengaturan',
         element: <SettingsPage />,
+      },
+      {
+        path: 'admin',
+        element: <AdminDashboard />,
       }
     ]
   },

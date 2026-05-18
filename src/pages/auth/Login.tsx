@@ -13,45 +13,38 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { login, isAuthenticated } = useAuthStore();
-  const navigate = useNavigate();
-
-  if (isAuthenticated) {
-    return <Navigate to="/" replace />;
-  }
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError(null);
-
-    // MOCK LOGIN FOR DEVELOPMENT PREVIEW
-    // Jika VITE_GAS_API_URL kosong atau masih placeholder, kita gunakan mock login.
-    const isMock = !import.meta.env.VITE_GAS_API_URL || import.meta.env.VITE_GAS_API_URL === '';
-
-    try {
-      if (isMock) {
-        // Simulasi network delay
-        await new Promise(r => setTimeout(r, 1000));
-        
-        if (username === 'admin' && password === 'admin') {
-          login(
-            { id: '1', nama: 'Admin Sekolah', username: 'admin', role: 'admin' },
-            'mock-token-admin'
-          );
-          navigate('/', { replace: true });
-          return;
-        } else if (username === 'guru' && password === 'guru') {
-          login(
-            { id: '2', nama: 'Budi Santoso, S.Pd', username: 'guru', role: 'guru' },
-            'mock-token-guru'
-          );
-          navigate('/', { replace: true });
-          return;
-        } else {
-          throw new Error('Gunakan admin/admin atau guru/guru untuk demonstrasi.');
+    const { login, isAuthenticated, users } = useAuthStore();
+    const navigate = useNavigate();
+  
+    if (isAuthenticated) {
+      return <Navigate to="/" replace />;
+    }
+  
+    const handleLogin = async (e: React.FormEvent) => {
+      e.preventDefault();
+      setIsLoading(true);
+      setError(null);
+  
+      // MOCK LOGIN FOR DEVELOPMENT PREVIEW
+      const isMock = !import.meta.env.VITE_GAS_API_URL || import.meta.env.VITE_GAS_API_URL === '';
+  
+      try {
+        if (isMock) {
+          await new Promise(r => setTimeout(r, 1000));
+          
+          const userMatch = users.find(u => u.username === username && u.password === password);
+          
+          if (userMatch) {
+            login(
+              { id: userMatch.id, nama: userMatch.nama, username: userMatch.username, role: userMatch.role },
+              `mock-token-${userMatch.id}`
+            );
+            navigate('/', { replace: true });
+            return;
+          } else {
+            throw new Error('Username atau password salah.');
+          }
         }
-      }
 
       // API ASLI KE GAS
       const res = await apiClient.post('', { 
