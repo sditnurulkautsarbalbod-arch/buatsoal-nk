@@ -7,23 +7,28 @@ app.get('/api/health', (c) => c.json({ status: 'ok' }));
 
 // API: Upload to R2
 app.post('/api/upload', async (c) => {
-  const body = await c.req.parseBody();
-  const file = body['file'] as File;
+  try {
+    const body = await c.req.parseBody();
+    const file = body['file'] as File;
 
-  if (!file) return c.json({ error: 'No file uploaded' }, 400);
+    if (!file) return c.json({ error: 'No file uploaded' }, 400);
 
-  const fileName = `${Date.now()}-${file.name}`;
-  const bucket = (c.env as any)?.BUCKET;
+    const fileName = `${Date.now()}-${file.name}`;
+    const bucket = (c.env as any)?.BUCKET;
 
-  if (bucket) {
-    await bucket.put(fileName, await file.arrayBuffer(), {
-      httpMetadata: { contentType: file.type },
-    });
-    const publicUrl = `${(c.env as any).CF_R2_PUBLIC_URL}/${fileName}`;
-    return c.json({ url: publicUrl });
-  } else {
-    // Fallback for dev proxy if needed
-    return c.json({ error: 'R2 Binding not found.' }, 500);
+    if (bucket) {
+      await bucket.put(fileName, await file.arrayBuffer(), {
+        httpMetadata: { contentType: file.type },
+      });
+      // Ambil Public URL dari env atau hardcode jika sudah ada
+      const baseUrl = (c.env as any).CF_R2_PUBLIC_URL || '';
+      const publicUrl = `${baseUrl}/${fileName}`;
+      return c.json({ url: publicUrl });
+    } else {
+      return c.json({ error: 'R2 Binding BUCKET tidak ditemukan.' }, 500);
+    }
+  } catch (err: any) {
+    return c.json({ error: err.message }, 500);
   }
 });
 
@@ -33,14 +38,16 @@ app.post('/api/db/query', async (c) => {
   const db = (c.env as any)?.DB;
 
   if (db) {
+    // PRODUCTION: Gunakan D1 Binding
     try {
       const result = await db.prepare(sql).bind(...(params || [])).all();
-      return c.json({ success: true, result: [result] });
+      // Format response agar sesuai dengan cloudflareService.ts
+      return c.json({ success: true, result: [{ results: result.results, success: true }] });
     } catch (err: any) {
       return c.json({ success: false, errors: [{ message: err.message }] });
     }
   } else {
-    // Development Proxy
+    // DEVELOPMENT: Proxy via Cloudflare API
     const CF_ACCOUNT_ID = (c.env as any)?.CF_ACCOUNT_ID;
     const CF_API_TOKEN = (c.env as any)?.CF_API_TOKEN;
     const CF_D1_DATABASE_ID = (c.env as any)?.CF_D1_DATABASE_ID;
@@ -59,12 +66,9 @@ app.post('/api/db/query', async (c) => {
       );
       return c.json(await response.json());
     } catch (error: any) {
-      return c.json({ error: "Failed to query D1 proxy", details: error.message }, 500);
+      return c.json({ error: "Gagal memproses query ke D1", details: error.message }, 500);
     }
   }
 });
-
-// Serve Static Files is handled by [assets] in wrangler.toml + Cloudflare system
-// For local dev, we will have a separate entry point or conditional import
 
 export default app;

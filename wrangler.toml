@@ -11,14 +11,14 @@ binding = "ASSETS"
 
 # Environment Variables (Non-Rahasia)
 [vars]
-CF_R2_PUBLIC_URL = "ISI_DENGAN_URL_PUBLIC_R2_ANDA"
+CF_R2_PUBLIC_URL = "https://pub-edbc7b36889448d6b89d209ec6a8301a.r2.dev"
 CF_R2_BUCKET_NAME = "eduscript-assets"
 
 # Binding Database D1
 [[d1_databases]]
-binding = "DB" # Nama variabel di dalam code
+binding = "DB"
 database_name = "eduscript-db"
-database_id = "ISI_DENGAN_DATABASE_ID_ANDA"
+database_id = "6e0fcb5d-8325-4b81-b9ca-9189a950b240"
 
 # Binding R2 Storage
 [[r2_buckets]]
