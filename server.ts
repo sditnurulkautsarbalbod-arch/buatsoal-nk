@@ -20,12 +20,45 @@ app.post('/api/upload', async (c) => {
       await bucket.put(fileName, await file.arrayBuffer(), {
         httpMetadata: { contentType: file.type },
       });
-      // Ambil Public URL dari env atau hardcode jika sudah ada
       const baseUrl = (c.env as any).CF_R2_PUBLIC_URL || '';
       const publicUrl = `${baseUrl}/${fileName}`;
       return c.json({ url: publicUrl });
     } else {
-      return c.json({ error: 'R2 Binding BUCKET tidak ditemukan.' }, 500);
+      // Fallback: Gunakan S3 Client (untuk local development di AI Studio)
+      const env = (c.env as any) || process.env;
+      const R2_ACCESS_KEY_ID = env.CF_R2_ACCESS_KEY_ID;
+      const R2_SECRET_ACCESS_KEY = env.CF_R2_SECRET_ACCESS_KEY;
+      const R2_BUCKET_NAME = env.CF_R2_BUCKET_NAME;
+      const R2_ACCOUNT_ID = env.CF_ACCOUNT_ID;
+      const R2_PUBLIC_URL = env.CF_R2_PUBLIC_URL;
+
+      if (!R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY || !R2_BUCKET_NAME || !R2_ACCOUNT_ID) {
+        return c.json({ error: 'R2 Credentials (Access Key, Secret, Bucket Name, Account ID) tidak lengkap di Environment Variables.' }, 500);
+      }
+
+      try {
+        const { S3Client, PutObjectCommand } = await import('@aws-sdk/client-s3');
+        const s3 = new S3Client({
+          region: 'auto',
+          endpoint: `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+          credentials: {
+            accessKeyId: R2_ACCESS_KEY_ID,
+            secretAccessKey: R2_SECRET_ACCESS_KEY,
+          },
+        });
+
+        await s3.send(new PutObjectCommand({
+          Bucket: R2_BUCKET_NAME,
+          Key: fileName,
+          Body: Buffer.from(await file.arrayBuffer()),
+          ContentType: file.type,
+        }));
+
+        const publicUrl = `${R2_PUBLIC_URL}/${fileName}`;
+        return c.json({ url: publicUrl });
+      } catch (s3Err: any) {
+        return c.json({ error: `Gagal upload ke R2 via S3: ${s3Err.message}` }, 500);
+      }
     }
   } catch (err: any) {
     return c.json({ error: err.message }, 500);
@@ -49,9 +82,9 @@ app.post('/api/db/query', async (c) => {
   } else {
     // DEVELOPMENT: Proxy via Cloudflare API
     const env = c.env as any;
-    const CF_ACCOUNT_ID = env?.CF_ACCOUNT_ID || process.env.CF_ACCOUNT_ID;
-    const CF_API_TOKEN = env?.CF_API_TOKEN || process.env.CF_API_TOKEN;
-    const CF_D1_DATABASE_ID = env?.CF_D1_DATABASE_ID || process.env.CF_D1_DATABASE_ID;
+    const CF_ACCOUNT_ID = (env?.CF_ACCOUNT_ID || process.env.CF_ACCOUNT_ID || '').trim();
+    const CF_API_TOKEN = (env?.CF_API_TOKEN || process.env.CF_API_TOKEN || '').trim();
+    const CF_D1_DATABASE_ID = (env?.CF_D1_DATABASE_ID || process.env.CF_D1_DATABASE_ID || '').trim();
 
     if (!CF_ACCOUNT_ID || !CF_API_TOKEN || !CF_D1_DATABASE_ID) {
       console.error('Cloudflare D1 credentials missing in environment');
