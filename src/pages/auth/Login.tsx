@@ -127,7 +127,7 @@ export default function LoginPage() {
           
           <div className="text-center mt-4">
             <p className="text-xs text-slate-400">
-              Versi Demo: Gunakan <strong className="text-slate-500">guru</strong> / <strong className="text-slate-500">guru</strong>
+              Versi Demo: <strong className="text-slate-500">admin / admin123</strong> atau <strong className="text-slate-500">guru / guru</strong>
             </p>
           </div>
         </form>

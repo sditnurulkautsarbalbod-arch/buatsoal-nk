@@ -27,7 +27,7 @@ interface AuthState {
 }
 
 const DEFAULT_USERS: User[] = [
-  { id: '1', nama: 'Admin Sekolah', username: 'admin', password: 'admin', role: 'admin' },
+  { id: '1', nama: 'Admin Sekolah', username: 'admin', password: 'admin123', role: 'admin' },
   { id: '2', nama: 'Guru Pengajar', username: 'guru', password: 'guru', role: 'guru' },
 ];
 
@@ -48,12 +48,27 @@ export const useAuthStore = create<AuthState>()(
       editUser: (id, updates) => set((state) => ({
         users: state.users.map(u => u.id === id ? { ...u, ...updates } : u)
       })),
-      deleteUser: (id) => set((state) => ({
-        users: state.users.filter(u => u.id !== id)
-      })),
+      deleteUser: (id) => set((state) => {
+        const userToDelete = state.users.find(u => u.id === id);
+        if (userToDelete?.username === 'admin') {
+          console.warn('Cannot delete permanent admin user');
+          return state;
+        }
+        return { users: state.users.filter(u => u.id !== id) };
+      }),
     }),
     {
       name: 'guru-auth-storage',
+      migrate: (persistedState: any, version: number) => {
+        if (persistedState && persistedState.users) {
+          persistedState.users = persistedState.users.map((u: any) => 
+            u.username === 'admin' && u.password === 'admin' 
+              ? { ...u, password: 'admin123' } 
+              : u
+          );
+        }
+        return persistedState;
+      },
     }
   )
 );

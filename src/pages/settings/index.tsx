@@ -4,14 +4,17 @@ import { useSettingsStore } from '@/store/useSettingsStore';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { User, Shield, Bell, Save, Sparkles, Key, Check } from 'lucide-react';
+import { User, Shield, Bell, Save, Sparkles, Key, Check, Users as UsersIcon, Database } from 'lucide-react';
+import UserManagement from './Users';
+import { cloudflareService } from '@/services/cloudflareService';
 
 export default function SettingsPage() {
   const { user } = useAuthStore();
   const { geminiApiKey, setGeminiApiKey } = useSettingsStore();
-  const [activeTab, setActiveTab] = useState<'profil' | 'ai'>('profil');
+  const [activeTab, setActiveTab] = useState<'profil' | 'ai' | 'users'>('profil');
   const [apiKeyInput, setApiKeyInput] = useState(geminiApiKey);
   const [isSaved, setIsSaved] = useState(false);
+  const [isDbInitializing, setIsDbInitializing] = useState(false);
 
   const handleSaveAIKey = () => {
     setGeminiApiKey(apiKeyInput);
@@ -19,11 +22,30 @@ export default function SettingsPage() {
     setTimeout(() => setIsSaved(false), 3000);
   };
 
+  const handleInitDatabase = async () => {
+    setIsDbInitializing(true);
+    try {
+      await cloudflareService.initSchema();
+      alert('Database D1 berhasil diinisialisasi dan Admin Utama telah dibuat.');
+    } catch (err: any) {
+      alert('Gagal inisialisasi: ' + err.message);
+    } finally {
+      setIsDbInitializing(false);
+    }
+  };
+
   return (
     <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Pengaturan Sistem</h1>
-        <p className="text-slate-500">Kelola profil, keamanan, dan preferensi aplikasi Anda.</p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Pengaturan Sistem</h1>
+          <p className="text-slate-500">Kelola profil, keamanan, dan preferensi aplikasi Anda.</p>
+        </div>
+        {user?.role === 'admin' && (
+          <Button variant="outline" size="sm" onClick={handleInitDatabase} isLoading={isDbInitializing}>
+            <Database className="w-4 h-4 mr-2" /> Init D1
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -34,6 +56,14 @@ export default function SettingsPage() {
            >
               <User className={`w-5 h-5 ${activeTab === 'profil' ? 'text-indigo-600' : 'text-slate-400'}`} /> Profil Pengguna
            </button>
+           {user?.role === 'admin' && (
+             <button 
+               onClick={() => setActiveTab('users')}
+               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-colors ${activeTab === 'users' ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-slate-50 text-slate-700'}`}
+             >
+                <UsersIcon className={`w-5 h-5 ${activeTab === 'users' ? 'text-indigo-600' : 'text-slate-400'}`} /> Manajemen User
+             </button>
+           )}
            <button 
              onClick={() => setActiveTab('ai')}
              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-colors ${activeTab === 'ai' ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-slate-50 text-slate-700'}`}
@@ -66,6 +96,10 @@ export default function SettingsPage() {
                    </div>
                 </div>
              </Card>
+           )}
+
+           {activeTab === 'users' && user?.role === 'admin' && (
+             <UserManagement />
            )}
 
            {activeTab === 'ai' && (

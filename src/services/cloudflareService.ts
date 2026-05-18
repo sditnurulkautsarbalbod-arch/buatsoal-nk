@@ -52,7 +52,15 @@ export const cloudflareService = {
    * Initialize Database schema
    */
   async initSchema() {
-    const sql = `
+    const tableSql = `
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        nama TEXT,
+        username TEXT UNIQUE,
+        password TEXT,
+        role TEXT,
+        foto TEXT
+      );
       CREATE TABLE IF NOT EXISTS drafts (
         id TEXT PRIMARY KEY,
         title TEXT,
@@ -61,6 +69,15 @@ export const cloudflareService = {
         editorState TEXT
       );
     `;
-    return this.queryD1(sql);
+    await this.queryD1(tableSql);
+
+    // Cek apakah admin sudah ada
+    const users = await this.queryD1('SELECT * FROM users WHERE username = ?', ['admin']);
+    if (users.length === 0) {
+      await this.queryD1(
+        'INSERT INTO users (id, nama, username, password, role) VALUES (?, ?, ?, ?, ?)',
+        ['1', 'Admin Utama', 'admin', 'admin123', 'admin']
+      );
+    }
   }
 };
