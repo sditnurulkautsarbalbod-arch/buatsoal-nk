@@ -12,6 +12,7 @@ export interface Question {
   options?: QuestionOption[];
   correctAnswer?: string;
   bobot: number;
+  tingkatKesulitan?: string;
   pembahasan: string;
   imageUrl?: string;
   imageWidth?: number;
@@ -60,34 +61,18 @@ export const useEditorStore = create<EditorState>((set) => ({
   header: {
     logoLeft: '',
     logoRight: '',
-    schoolName: 'SD NEGERI 1 CEMERLANG',
-    schoolAddress: 'Jl. Pendidikan No. 1, Cemerlang, Indonesia',
-    schoolContact: 'Telp. (021) 1234567 | www.sdncemerlang.sch.id',
-    schoolEmail: 'Email: info@sdncemerlang.sch.id',
-    judulUjian: 'Penilaian Akhir Semester Genap',
-    mataPelajaran: 'Matematika',
-    kelas: 'V (Lima)',
-    semester: '2 (Dua)',
-    tahunAjaran: '2023/2024',
-    waktu: '90 Menit'
+    schoolName: 'SD IT NURUL KAUTSAR',
+    schoolAddress: 'Jl. Andi Mangerangi No. 47, Makassar, Indonesia',
+    schoolContact: 'Telp. 082344659435',
+    schoolEmail: 'Email: sditnurulkautsarbalbod@gmail.com',
+    judulUjian: '',
+    mataPelajaran: '',
+    kelas: '',
+    semester: '',
+    tahunAjaran: '',
+    waktu: '60 Menit'
   },
-  questions: [
-    {
-      id: '1',
-      type: 'pg',
-      text: 'Hasil dari 2.456 + 3.789 adalah ....',
-      options: [
-        { id: 'A', text: '5.235' },
-        { id: 'B', text: '6.245' },
-        { id: 'C', text: '6.135' },
-        { id: 'D', text: '6.335' }
-      ],
-      correctAnswer: 'B',
-      bobot: 1,
-      tingkatKesulitan: 'Sedang',
-      pembahasan: '2.456 + 3.789 = 6.245'
-    }
-  ],
+  questions: [],
   pdfSettings: {
     paperSize: 'F4', // F4 (21.0 x 33.0 cm)
     orientation: 'Portrait',

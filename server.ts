@@ -48,9 +48,18 @@ app.post('/api/db/query', async (c) => {
     }
   } else {
     // DEVELOPMENT: Proxy via Cloudflare API
-    const CF_ACCOUNT_ID = (c.env as any)?.CF_ACCOUNT_ID;
-    const CF_API_TOKEN = (c.env as any)?.CF_API_TOKEN;
-    const CF_D1_DATABASE_ID = (c.env as any)?.CF_D1_DATABASE_ID;
+    const env = c.env as any;
+    const CF_ACCOUNT_ID = env?.CF_ACCOUNT_ID || process.env.CF_ACCOUNT_ID;
+    const CF_API_TOKEN = env?.CF_API_TOKEN || process.env.CF_API_TOKEN;
+    const CF_D1_DATABASE_ID = env?.CF_D1_DATABASE_ID || process.env.CF_D1_DATABASE_ID;
+
+    if (!CF_ACCOUNT_ID || !CF_API_TOKEN || !CF_D1_DATABASE_ID) {
+      console.error('Cloudflare D1 credentials missing in environment');
+      return c.json({ 
+        success: false, 
+        errors: [{ message: 'Cloudflare D1 credentials missing. Please set CF_ACCOUNT_ID, CF_API_TOKEN, and CF_D1_DATABASE_ID in Secrets.' }] 
+      }, 500);
+    }
     
     try {
       const response = await fetch(
@@ -64,9 +73,16 @@ app.post('/api/db/query', async (c) => {
           body: JSON.stringify({ sql, params })
         }
       );
-      return c.json(await response.json());
+      
+      const data = await response.json();
+      if (!response.ok) {
+        console.error('Cloudflare API returned error:', data);
+        return c.json(data, response.status as any);
+      }
+      return c.json(data);
     } catch (error: any) {
-      return c.json({ error: "Gagal memproses query ke D1", details: error.message }, 500);
+      console.error('Fetch to Cloudflare API failed:', error);
+      return c.json({ success: false, errors: [{ message: "Gagal memproses query ke D1: " + error.message }] }, 500);
     }
   }
 });

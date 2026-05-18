@@ -36,14 +36,14 @@ export default function LoginPage() {
         
         if (username === 'admin' && password === 'admin') {
           login(
-            { id: '1', nama: 'Admin Sekolah', username: 'admin', email: 'admin@sekolah.com', role: 'admin' },
+            { id: '1', nama: 'Admin Sekolah', username: 'admin', role: 'admin' },
             'mock-token-admin'
           );
           navigate('/', { replace: true });
           return;
         } else if (username === 'guru' && password === 'guru') {
           login(
-            { id: '2', nama: 'Budi Santoso, S.Pd', username: 'guru', email: 'budi@sekolah.com', role: 'guru' },
+            { id: '2', nama: 'Budi Santoso, S.Pd', username: 'guru', role: 'guru' },
             'mock-token-guru'
           );
           navigate('/', { replace: true });

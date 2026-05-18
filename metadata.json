@@ -1,6 +1,6 @@
 {
-  "name": "SD EduApp",
-  "description": "Platform Pembuat Soal Ujian Profesional Khusus SD",
+  "name": "EduScript Pro",
+  "description": "Platform pembuat soal ujian profesional dengan integrasi AI dan Cloudflare D1.",
   "requestFramePermissions": [],
-  "majorCapabilities": []
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

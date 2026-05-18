@@ -14,15 +14,9 @@ interface AIGeneratorModalProps {
 export function AIGeneratorModal({ isOpen, onClose }: AIGeneratorModalProps) {
   const [topic, setTopic] = useState('');
   const [counts, setCounts] = useState({
-    pg: 3,
-    pg_kompleks: 0,
-    bs: 0,
-    jodohkan: 0,
+    pg: 5,
     isian: 0,
-    uraian: 0,
-    hots: 0,
-    gambar: 0,
-    tabel: 0
+    uraian: 0
   });
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState('');
@@ -43,7 +37,7 @@ export function AIGeneratorModal({ isOpen, onClose }: AIGeneratorModalProps) {
       return;
     }
     
-    const totalQuestions = counts.pg + counts.pg_kompleks + counts.bs + counts.jodohkan + counts.isian + counts.uraian + counts.hots + counts.gambar + counts.tabel;
+    const totalQuestions = counts.pg + counts.isian + counts.uraian;
     if (totalQuestions === 0 || isNaN(totalQuestions)) {
       setError('Pilih minimal 1 soal untuk dibuat!');
       return;
@@ -56,21 +50,20 @@ export function AIGeneratorModal({ isOpen, onClose }: AIGeneratorModalProps) {
       const ai = new GoogleGenAI({ apiKey: geminiApiKey });
       const prompt = `Buatkan ${totalQuestions} soal ${header.mataPelajaran} tingkat ${header.kelas} tentang topik "${topic}". 
       Komposisi jenis soal:
-      ${counts.pg > 0 ? `- ${counts.pg} soal Pilihan Ganda (type: "pg")\n` : ''}${counts.pg_kompleks > 0 ? `- ${counts.pg_kompleks} soal Pilihan Ganda Kompleks (type: "pg_kompleks")\n` : ''}${counts.bs > 0 ? `- ${counts.bs} soal Benar/Salah (type: "bs")\n` : ''}${counts.jodohkan > 0 ? `- ${counts.jodohkan} soal Menjodohkan (type: "jodohkan")\n` : ''}${counts.isian > 0 ? `- ${counts.isian} soal Isian (type: "isian")\n` : ''}${counts.uraian > 0 ? `- ${counts.uraian} soal Uraian (type: "uraian")\n` : ''}${counts.hots > 0 ? `- ${counts.hots} soal HOTS (type: "hots")\n` : ''}${counts.gambar > 0 ? `- ${counts.gambar} soal dengan konteks Gambar (type: "gambar")\n` : ''}${counts.tabel > 0 ? `- ${counts.tabel} soal dengan konteks Tabel (type: "tabel")\n` : ''}
+      ${counts.pg > 0 ? `- ${counts.pg} soal Pilihan Ganda (type: "pg")\n` : ''}${counts.isian > 0 ? `- ${counts.isian} soal Isian (type: "isian")\n` : ''}${counts.uraian > 0 ? `- ${counts.uraian} soal Uraian (type: "uraian")\n` : ''}
       Format hasilnya dalam JSON array flat dengan struktur object di bawah ini. Harap beri "type" berupa string persis seperti referensi di atas:
       [
         {
-          "type": "pg", // ganti sesuai tipe soal yang diminta
+          "type": "pg", // "pg", "isian", atau "uraian"
           "text": "Pertanyaan soal...",
-          "options": [ // WAJIB ada jika type="pg", "pg_kompleks", atau "bs". Jika "isian" atau "uraian", hilangkan field options.
-             // Untuk "pg" atau "pg_kompleks" formatnya:
+          "options": [ // WAJIB ada jika type="pg". Jika "isian" atau "uraian", hilangkan field options.
+             // Untuk "pg" formatnya:
              {"id": "A", "text": "Pilihan A"}, 
              {"id": "B", "text": "Pilihan B"}, 
              {"id": "C", "text": "Pilihan C"}, 
              {"id": "D", "text": "Pilihan D"}
-             // JIKA "bs" Wajib isi array options: [{"id": "Benar", "text": "Benar"}, {"id": "Salah", "text": "Salah"}]
           ],
-          "correctAnswer": "A", // Sesuaikan correctAnswer. Jika pg/pg_kompleks isi misal "A", atau "A, C" pakai koma.
+          "correctAnswer": "A", // Sesuaikan correctAnswer.
           "pembahasan": "Pembahasan singkat"
         }
       ]
@@ -149,21 +142,23 @@ export function AIGeneratorModal({ isOpen, onClose }: AIGeneratorModalProps) {
 
           <div className="space-y-2">
              <label className="text-sm font-semibold text-slate-700">Komposisi Jumlah Soal</label>
-             <div className="grid grid-cols-5 gap-2 max-h-[250px] overflow-y-auto overflow-x-hidden p-1">
+             <div className="grid grid-cols-3 gap-4 p-1">
                 {[
                   { id: 'pg', label: 'PG' },
-                  { id: 'pg_kompleks', label: 'PG Kompleks' },
-                  { id: 'bs', label: 'Benar/Salah' },
-                  { id: 'jodohkan', label: 'Jodohkan' },
                   { id: 'isian', label: 'Isian' },
                   { id: 'uraian', label: 'Uraian' },
-                  { id: 'hots', label: 'HOTS' },
-                  { id: 'gambar', label: 'Gambar' },
-                  { id: 'tabel', label: 'Tabel' },
                 ].map((item) => (
-                  <div key={item.id} className="space-y-1 text-center">
-                     <label className="text-[10px] font-medium text-slate-500 line-clamp-1" title={item.label}>{item.label}</label>
-                     <input type="number" min="0" max="20" className="w-full text-center text-sm p-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 disabled:bg-slate-50" value={(counts as any)[item.id]} onChange={e => setCounts({...counts, [item.id]: parseInt(e.target.value) || 0})} disabled={isGenerating} />
+                  <div key={item.id} className="space-y-1.5 text-center">
+                     <label className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full inline-block mb-1" title={item.label}>{item.label}</label>
+                     <input 
+                       type="number" 
+                       min="0" 
+                       max="40" 
+                       className="w-full text-center text-base font-medium py-2.5 border-2 border-slate-100 rounded-xl outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 transition-all disabled:bg-slate-50" 
+                       value={(counts as any)[item.id]} 
+                       onChange={e => setCounts({...counts, [item.id]: parseInt(e.target.value) || 0})} 
+                       disabled={isGenerating} 
+                     />
                   </div>
                 ))}
              </div>

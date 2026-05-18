@@ -56,10 +56,6 @@ export default function SettingsPage() {
                       <Input defaultValue={user?.username} disabled className="bg-slate-100 text-slate-500 cursor-not-allowed" />
                    </div>
                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1 pl-1">Email</label>
-                      <Input defaultValue={user?.email} type="email" />
-                   </div>
-                   <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1 pl-1">Peran Akses</label>
                       <Input defaultValue={user?.role.toUpperCase()} disabled className="bg-slate-100 text-slate-500 cursor-not-allowed" />
                    </div>

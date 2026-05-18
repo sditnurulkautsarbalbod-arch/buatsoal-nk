@@ -7,7 +7,6 @@ export interface User {
   id: string;
   nama: string;
   username: string;
-  email: string;
   role: UserRole;
   foto?: string;
 }
