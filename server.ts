@@ -1,112 +1,70 @@
-import express from "express";
-import path from "path";
-import fs from "fs";
-import { createServer as createViteServer } from "vite";
-import multer from "multer";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
-import { Upload } from "@aws-sdk/lib-storage";
-import axios from "axios";
-import dotenv from "dotenv";
+import { Hono } from 'hono';
 
-dotenv.config();
-
-const app = express();
-const PORT = 3000;
-
-app.use(express.json({ limit: '50mb' }));
-
-// Multer for memory storage
-const upload = multer({ storage: multer.memoryStorage() });
-
-// Cloudflare R2 Client
-const r2Client = new S3Client({
-  region: "auto",
-  endpoint: `https://${process.env.CF_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-  credentials: {
-    accessKeyId: process.env.CF_R2_ACCESS_KEY_ID || "",
-    secretAccessKey: process.env.CF_R2_SECRET_ACCESS_KEY || "",
-  },
-});
+const app = new Hono();
 
 // API: Health Check
-app.get("/api/health", (req, res) => {
-  res.json({ status: "ok" });
-});
+app.get('/api/health', (c) => c.json({ status: 'ok' }));
 
 // API: Upload to R2
-app.post("/api/upload", upload.single("file"), async (req, res) => {
-  try {
-    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
-    
-    const fileName = `${Date.now()}-${req.file.originalname}`;
-    const params = {
-      Bucket: process.env.CF_R2_BUCKET_NAME,
-      Key: fileName,
-      Body: req.file.buffer,
-      ContentType: req.file.mimetype,
-    };
+app.post('/api/upload', async (c) => {
+  const body = await c.req.parseBody();
+  const file = body['file'] as File;
 
-    const parallelUploads3 = new Upload({
-      client: r2Client,
-      params: params,
+  if (!file) return c.json({ error: 'No file uploaded' }, 400);
+
+  const fileName = `${Date.now()}-${file.name}`;
+  const bucket = (c.env as any)?.BUCKET;
+
+  if (bucket) {
+    await bucket.put(fileName, await file.arrayBuffer(), {
+      httpMetadata: { contentType: file.type },
     });
-
-    await parallelUploads3.done();
-    
-    const publicUrl = `${process.env.CF_R2_PUBLIC_URL}/${fileName}`;
-    res.json({ url: publicUrl });
-  } catch (error) {
-    console.error("R2 Upload Error:", error);
-    res.status(500).json({ error: "Failed to upload to R2" });
-  }
-});
-
-// API: D1 Proxy
-app.post("/api/db/query", async (req, res) => {
-  const { sql, params } = req.body;
-  
-  if (!process.env.CF_ACCOUNT_ID || !process.env.CF_API_TOKEN || !process.env.CF_D1_DATABASE_ID) {
-    return res.status(500).json({ error: "Cloudflare D1 credentials not configured" });
-  }
-
-  try {
-    const response = await axios.post(
-      `https://api.cloudflare.com/client/v4/accounts/${process.env.CF_ACCOUNT_ID}/d1/database/${process.env.CF_D1_DATABASE_ID}/query`,
-      { sql, params },
-      {
-        headers: {
-          "Authorization": `Bearer ${process.env.CF_API_TOKEN}`,
-          "Content-Type": "application/json"
-        }
-      }
-    );
-
-    res.json(response.data);
-  } catch (error: any) {
-    console.error("D1 Query Error:", error.response?.data || error.message);
-    res.status(500).json({ error: "Failed to query D1", details: error.response?.data });
-  }
-});
-
-// Vite Middleware for Development
-async function startServer() {
-  if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
+    const publicUrl = `${(c.env as any).CF_R2_PUBLIC_URL}/${fileName}`;
+    return c.json({ url: publicUrl });
   } else {
-    const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
-    app.get("*all", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
-    });
+    // Fallback for dev proxy if needed
+    return c.json({ error: 'R2 Binding not found.' }, 500);
   }
+});
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
-}
+// API: D1 Proxy / Direct
+app.post('/api/db/query', async (c) => {
+  const { sql, params } = await c.req.json();
+  const db = (c.env as any)?.DB;
 
-startServer();
+  if (db) {
+    try {
+      const result = await db.prepare(sql).bind(...(params || [])).all();
+      return c.json({ success: true, result: [result] });
+    } catch (err: any) {
+      return c.json({ success: false, errors: [{ message: err.message }] });
+    }
+  } else {
+    // Development Proxy
+    const CF_ACCOUNT_ID = (c.env as any)?.CF_ACCOUNT_ID;
+    const CF_API_TOKEN = (c.env as any)?.CF_API_TOKEN;
+    const CF_D1_DATABASE_ID = (c.env as any)?.CF_D1_DATABASE_ID;
+    
+    try {
+      const response = await fetch(
+        `https://api.cloudflare.com/client/v4/accounts/${CF_ACCOUNT_ID}/d1/database/${CF_D1_DATABASE_ID}/query`,
+        {
+          method: 'POST',
+          headers: {
+            "Authorization": `Bearer ${CF_API_TOKEN}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ sql, params })
+        }
+      );
+      return c.json(await response.json());
+    } catch (error: any) {
+      return c.json({ error: "Failed to query D1 proxy", details: error.message }, 500);
+    }
+  }
+});
+
+// Serve Static Files is handled by [assets] in wrangler.toml + Cloudflare system
+// For local dev, we will have a separate entry point or conditional import
+
+export default app;
