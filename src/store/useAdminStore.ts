@@ -14,8 +14,15 @@ interface AdminState {
     left: string;
     right: string;
   };
+  defaultSchoolInfo: {
+    yayasan: string;
+    namaSekolah: string;
+    alamat: string;
+    kontak: string;
+  };
   options: HeaderOptions;
   setDefaultLogos: (left: string, right: string) => void;
+  setDefaultSchoolInfo: (info: Partial<AdminState['defaultSchoolInfo']>) => void;
   // Dynamic Option Management
   addOption: (field: keyof HeaderOptions, value: string) => void;
   editOption: (field: keyof HeaderOptions, index: number, value: string) => void;
@@ -37,8 +44,17 @@ export const useAdminStore = create<AdminState>()(
         left: '',
         right: '',
       },
+      defaultSchoolInfo: {
+        yayasan: 'YAYASAN PENDIDIKAN NURUL KAUTSAR',
+        namaSekolah: 'SD IT NURUL KAUTSAR',
+        alamat: 'Jl. Andi Mangerangi No. 47, Makassar, Indonesia',
+        kontak: 'Telp. 082344659435 I Email: sditnurulkautsarbalbod@gmail.com',
+      },
       options: DEFAULT_OPTIONS,
       setDefaultLogos: (left, right) => set({ defaultLogos: { left, right } }),
+      setDefaultSchoolInfo: (info) => set((state) => ({ 
+        defaultSchoolInfo: { ...state.defaultSchoolInfo, ...info } 
+      })),
       addOption: (field, value) => set((state) => ({
         options: {
           ...state.options,

@@ -18,6 +18,19 @@ export default function EditorPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const draftId = searchParams.get('id');
+  const { defaultLogos, defaultSchoolInfo } = useAdminStore();
+
+  useEffect(() => {
+    // If not loading a draft (or even if loading a draft but fields are empty), apply admin defaults
+    if (!draftId) {
+      if (!header.logoLeft && defaultLogos.left) setHeaderField('logoLeft', defaultLogos.left);
+      if (!header.logoRight && defaultLogos.right) setHeaderField('logoRight', defaultLogos.right);
+      if (!header.foundationName) setHeaderField('foundationName', defaultSchoolInfo.yayasan);
+      if (!header.schoolName) setHeaderField('schoolName', defaultSchoolInfo.namaSekolah);
+      if (!header.schoolAddress) setHeaderField('schoolAddress', defaultSchoolInfo.alamat);
+      if (!header.schoolContact) setHeaderField('schoolContact', defaultSchoolInfo.kontak);
+    }
+  }, [draftId, defaultLogos, defaultSchoolInfo]);
 
   const [zoom, setZoom] = useState(100);
   const [isAIModalOpen, setIsAIModalOpen] = useState(false);

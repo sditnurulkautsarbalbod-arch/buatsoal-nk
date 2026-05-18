@@ -27,7 +27,7 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<TabType>('users');
   const [activeField, setActiveField] = useState<keyof HeaderOptions | null>(null);
   const { users, addUser, editUser, deleteUser } = useAuthStore();
-  const { options, addOption, editOption, deleteOption, defaultLogos, setDefaultLogos } = useAdminStore();
+  const { options, addOption, editOption, deleteOption, defaultLogos, setDefaultLogos, defaultSchoolInfo, setDefaultSchoolInfo } = useAdminStore();
   const { drafts, deleteDraft } = useDraftStore();
 
   /* Local States for Forms */
@@ -99,7 +99,7 @@ export default function AdminDashboard() {
         {[
           { id: 'users', label: 'Pengguna', icon: Users },
           { id: 'headers', label: 'Header Dropdown', icon: ListOrdered },
-          { id: 'settings', label: 'Logo Default', icon: SettingsIcon },
+          { id: 'settings', label: 'Pengaturan Global', icon: SettingsIcon },
           { id: 'drafts', label: 'Seluruh Soal', icon: FileText },
           { id: 'backup', label: 'Backup & Restore', icon: Database },
         ].map(tab => (
@@ -208,26 +208,59 @@ export default function AdminDashboard() {
         )}
 
         {activeTab === 'settings' && (
-          <div className="p-8 space-y-8 max-w-2xl">
-            <div className="space-y-4">
-              <h3 className="font-bold text-slate-800">Logo Default Kiri (R2 URL)</h3>
-              <div className="flex gap-4">
-                <Input value={defaultLogos.left} onChange={e => setDefaultLogos(e.target.value, defaultLogos.right)} placeholder="https://..." />
-                <div className="w-12 h-12 border rounded-xl overflow-hidden bg-slate-50 flex items-center justify-center">
-                  {defaultLogos.left && <img src={defaultLogos.left} className="w-full h-full object-contain" alt="Preview" />}
+          <div className="p-8 space-y-8 max-w-4xl">
+            <div className="grid md:grid-cols-2 gap-8">
+              <div className="space-y-6">
+                <h3 className="font-bold text-slate-800 border-b pb-2">Identitas Sekolah (Default)</h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-[11px] font-semibold text-slate-500 mb-1.5 block">Nama Yayasan</label>
+                    <Input value={defaultSchoolInfo.yayasan} onChange={e => setDefaultSchoolInfo({ yayasan: e.target.value })} placeholder="Contoh: YAYASAN PENDIDIKAN..." />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-semibold text-slate-500 mb-1.5 block">Nama Sekolah</label>
+                    <Input value={defaultSchoolInfo.namaSekolah} onChange={e => setDefaultSchoolInfo({ namaSekolah: e.target.value })} placeholder="Contoh: SD IT NURUL KAUTSAR" />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-semibold text-slate-500 mb-1.5 block">Alamat</label>
+                    <Input value={defaultSchoolInfo.alamat} onChange={e => setDefaultSchoolInfo({ alamat: e.target.value })} placeholder="Contoh: Jl. Andi Mangerangi No. 47" />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-semibold text-slate-500 mb-1.5 block">Kontak / Keterangan Tambahan</label>
+                    <Input value={defaultSchoolInfo.kontak} onChange={e => setDefaultSchoolInfo({ kontak: e.target.value })} placeholder="Contoh: Telp. 0823... I Email: ..." />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <h3 className="font-bold text-slate-800 border-b pb-2">Logo KOP Surat (Default)</h3>
+                <div className="space-y-6">
+                  <div className="space-y-3">
+                    <label className="text-[11px] font-semibold text-slate-500 block">Logo Kiri (URL)</label>
+                    <div className="flex gap-4">
+                      <Input value={defaultLogos.left} onChange={e => setDefaultLogos(e.target.value, defaultLogos.right)} placeholder="https://..." />
+                      <div className="w-12 h-12 border rounded-xl overflow-hidden bg-slate-50 flex items-center justify-center shrink-0">
+                        {defaultLogos.left && <img src={defaultLogos.left} className="w-full h-full object-contain" alt="Preview" />}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <label className="text-[11px] font-semibold text-slate-500 block">Logo Kanan (URL)</label>
+                    <div className="flex gap-4">
+                      <Input value={defaultLogos.right} onChange={e => setDefaultLogos(defaultLogos.left, e.target.value)} placeholder="https://..." />
+                      <div className="w-12 h-12 border rounded-xl overflow-hidden bg-slate-50 flex items-center justify-center shrink-0">
+                        {defaultLogos.right && <img src={defaultLogos.right} className="w-full h-full object-contain" alt="Preview" />}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-4 bg-amber-50 border border-amber-100 rounded-2xl">
+                   <p className="text-xs text-amber-700 leading-relaxed">
+                     <strong>Tips:</strong> Gunakan fitur upload logo di <em>Editor Soal</em> terlebih dahulu untuk mendapatkan URL gambarnya, lalu salin URL tersebut ke sini untuk menjadikannya logo default bagi semua user.
+                   </p>
                 </div>
               </div>
             </div>
-            <div className="space-y-4">
-              <h3 className="font-bold text-slate-800">Logo Default Kanan (R2 URL)</h3>
-              <div className="flex gap-4">
-                <Input value={defaultLogos.right} onChange={e => setDefaultLogos(defaultLogos.left, e.target.value)} placeholder="https://..." />
-                <div className="w-12 h-12 border rounded-xl overflow-hidden bg-slate-50 flex items-center justify-center">
-                  {defaultLogos.right && <img src={defaultLogos.right} className="w-full h-full object-contain" alt="Preview" />}
-                </div>
-              </div>
-            </div>
-            <p className="text-xs text-slate-400">Tips: Gunakan fitur upload logo di Editor Soal terlebih dahulu untuk mendapatkan URL R2-nya, lalu salin URL-nya ke sini.</p>
           </div>
         )}
 
