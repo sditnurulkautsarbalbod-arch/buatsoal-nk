@@ -1,0 +1,26 @@
+#:schema node_modules/wrangler/config-schema.json
+name = "eduscript-nk"
+main = "server.ts"
+compatibility_date = "2024-04-03"
+compatibility_flags = [ "nodejs_compat" ]
+
+# Folder hasil build Vite
+[assets]
+directory = "dist"
+binding = "ASSETS"
+
+# Environment Variables (Non-Rahasia)
+[vars]
+CF_R2_PUBLIC_URL = "ISI_DENGAN_URL_PUBLIC_R2_ANDA"
+CF_R2_BUCKET_NAME = "eduscript-assets"
+
+# Binding Database D1
+[[d1_databases]]
+binding = "DB" # Nama variabel di dalam code
+database_name = "eduscript-db"
+database_id = "ISI_DENGAN_DATABASE_ID_ANDA"
+
+# Binding R2 Storage
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "eduscript-assets"
