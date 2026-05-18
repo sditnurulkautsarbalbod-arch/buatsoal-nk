@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+}
+
+@media print {
+  @page {
+    size: 21.0cm 33.0cm; /* F4 size standard: 21.0 x 33.0 cm or 210 x 330 mm */
+    margin: 1.5cm;
+  }
+}
+

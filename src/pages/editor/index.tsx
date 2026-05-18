@@ -1,0 +1,826 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { useEditorStore } from '@/store/useEditorStore';
+import { useDraftStore } from '@/store/useDraftStore';
+import { useSearchParams } from 'react-router-dom';
+import { Sparkles, Check, MoreVertical, ChevronLeft, Image as ImageIcon, ChevronDown, Plus, Minus, Maximize2, Trash2, ListTodo, AlignLeft, FileText, FileCheck2, Table, Upload, Trello, Menu, Activity, Bell, Search, Download, X, Settings, Printer, Save, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/Button';
+import { AIGeneratorModal } from '@/components/AIGeneratorModal';
+import { cloudflareService } from '@/services/cloudflareService';
+
+export default function EditorPage() {
+  const { header, setHeaderField, questions, addQuestion, updateQuestion, updateOption, deleteQuestion, pdfSettings, setPdfSetting } = useEditorStore();
+  const { drafts, saveDraft } = useDraftStore();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const draftId = searchParams.get('id');
+
+  const [zoom, setZoom] = useState(100);
+  const [isAIModalOpen, setIsAIModalOpen] = useState(false);
+  const [isPdfSettingsOpen, setIsPdfSettingsOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [imageModalConfig, setImageModalConfig] = useState<{ isOpen: boolean, tempUrl: string, questionId: string, widthCm: number, heightCm: number } | null>(null);
+  const [activeQuestionIndex, setActiveQuestionIndex] = useState(0);
+  const prevQuestionsLengthRef = useRef(questions.length);
+
+  useEffect(() => {
+    if (questions.length > prevQuestionsLengthRef.current) {
+      setActiveQuestionIndex(questions.length - 1);
+    } else if (activeQuestionIndex >= questions.length && questions.length > 0) {
+      setActiveQuestionIndex(questions.length - 1);
+    }
+    prevQuestionsLengthRef.current = questions.length;
+  }, [questions.length, activeQuestionIndex]);
+
+  const ITEMS_PER_PAGE = 5;
+  const pages = [];
+  for (let i = 0; i < questions.length; i += ITEMS_PER_PAGE) {
+     pages.push(questions.slice(i, i + ITEMS_PER_PAGE));
+  }
+  if (pages.length === 0) pages.push([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const totalPages = pages.length;
+
+  useEffect(() => {
+     if (currentPage > totalPages) setCurrentPage(Math.max(1, totalPages));
+  }, [totalPages, currentPage]);
+
+  useEffect(() => {
+    if (draftId) {
+      const existing = drafts.find(d => d.id === draftId);
+      if (existing && existing.editorState) {
+        useEditorStore.setState(existing.editorState);
+      }
+    }
+  }, [draftId]);
+
+  const handleSaveDraft = async () => {
+    const id = draftId || Date.now().toString();
+    const draftData = {
+      id,
+      title: header.judulUjian || "Draft Soal",
+      content: '', // legacy
+      updatedAt: new Date().toLocaleDateString('id-ID', { hour: '2-digit', minute:'2-digit' }),
+      editorState: useEditorStore.getState(),
+    };
+
+    setIsSaving(true);
+    try {
+      // Local Sync
+      saveDraft(draftData);
+      
+      // Cloudflare D1 Sync
+      await cloudflareService.queryD1(`
+        INSERT INTO drafts (id, title, content, updatedAt, editorState)
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          title = excluded.title,
+          content = excluded.content,
+          updatedAt = excluded.updatedAt,
+          editorState = excluded.editorState
+      `, [id, draftData.title, draftData.content, draftData.updatedAt, JSON.stringify(draftData.editorState)]);
+
+      if (!draftId) {
+        setSearchParams({ id });
+      }
+      toast.success('Draft berhasil disimpan ke Cloudflare!');
+    } catch (err) {
+      console.error('Save to Cloudflare failed:', err);
+      toast.error('Gagal menyimpan ke Cloudflare. Data tersimpan di lokal.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>, position: 'logoLeft' | 'logoRight') => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setIsUploading(true);
+      const toastId = toast.loading('Mengunggah logo ke R2...');
+      try {
+        const url = await cloudflareService.uploadToR2(file);
+        setHeaderField(position, url);
+        toast.success('Logo berhasil diunggah!', { id: toastId });
+      } catch (err) {
+        toast.error('Gagal mengunggah logo.', { id: toastId });
+      } finally {
+        setIsUploading(false);
+      }
+    }
+  };
+
+  const handlePrint = () => {
+    toast.success('Mempersiapkan PDF...', {
+      description: 'Dialog cetak/download akan segera terbuka.'
+    });
+    setTimeout(() => {
+      window.print();
+    }, 500);
+  };
+
+  const isLandscape = pdfSettings.orientation === 'Landscape';
+  const paperWidthObj = { 'A4': 210, 'F4': 210 };
+  const paperHeightObj = { 'A4': 297, 'F4': 330 };
+  const wBase = paperWidthObj[pdfSettings.paperSize as keyof typeof paperWidthObj] || 210;
+  const hBase = paperHeightObj[pdfSettings.paperSize as keyof typeof paperHeightObj] || 297;
+  const docWidth = isLandscape ? hBase : wBase;
+  const docHeight = isLandscape ? wBase : hBase;
+
+  return (
+    <div className="flex flex-col h-full bg-[#F1F5F9] font-sans">
+      <style>
+        {`
+          @media print {
+            @page {
+              size: ${pdfSettings.paperSize} ${isLandscape ? 'landscape' : 'portrait'};
+              margin: 0;
+            }
+          }
+        `}
+      </style>
+      {/* Top Header */}
+      <header className="bg-white border-b border-slate-200 h-16 flex items-center justify-between px-4 sticky top-0 z-20 shrink-0">
+        <div className="flex items-center gap-4 cursor-pointer md:hidden">
+          <Menu className="w-6 h-6 text-slate-600" />
+          <h1 className="text-lg font-bold">Editor Soal</h1>
+        </div>
+        <div className="hidden md:flex items-center gap-4 w-1/3">
+           <h1 className="text-lg font-bold text-slate-800 truncate">{header.judulUjian || "Contoh Soal Matematika"}</h1>
+           <button onClick={handleSaveDraft} disabled={isSaving} className="flex items-center gap-2 text-green-600 hover:bg-green-100 text-xs font-medium bg-green-50 px-2 py-1 rounded shrink-0 transition-colors disabled:opacity-50">
+             {isSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+             {isSaving ? 'Menyimpan...' : 'Simpan Draft'}
+           </button>
+           <button className="text-slate-400 hover:text-slate-600">
+             <MoreVertical className="w-5 h-5" />
+           </button>
+        </div>
+
+        {/* Center label (visible on desktop) */}
+        <div className="hidden md:flex items-center justify-center space-x-8 flex-1">
+           <div className="text-slate-800 font-semibold py-5">Editor Soal</div>
+        </div>
+
+        <div className="flex items-center justify-end gap-4 w-1/3">
+           <div className="relative cursor-pointer">
+              <Bell className="w-5 h-5 text-slate-600" />
+              <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-white flex items-center justify-center text-[10px] text-white font-bold">3</div>
+           </div>
+           <div className="flex items-center gap-2 cursor-pointer">
+              <img src="https://ui-avatars.com/api/?name=Bu+Sari&background=random" alt="Avatar" className="w-8 h-8 rounded-full" />
+              <div className="hidden md:block text-right">
+                 <p className="text-sm font-semibold text-slate-800 leading-none">Bu Sari</p>
+                 <p className="text-xs text-slate-500">Guru</p>
+              </div>
+           </div>
+        </div>
+      </header>
+
+      {/* Main Content Area: Split 50/50 Desktop */}
+      <div className="flex-1 flex flex-col xl:flex-row overflow-hidden">
+        
+        {/* Left Pane - Editor Form */}
+        <div className="w-full xl:w-[45%] flex flex-col bg-slate-50 border-r border-slate-200 overflow-y-auto print:hidden">
+          <div className="p-4 md:p-6 space-y-6">
+
+            
+            {/* Header Soal (Kop Surat) Settings */}
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-slate-800">Header Soal</h3>
+                <MoreVertical className="w-4 h-4 text-slate-400 cursor-pointer" />
+              </div>
+              
+              <div className="flex items-stretch border border-slate-200 rounded-lg p-3 bg-slate-50 relative gap-3">
+                {/* Logo Left */}
+                <div className="w-20 shrink-0 flex flex-col items-center justify-center border-2 border-dashed border-slate-300 rounded-lg bg-white relative hover:bg-slate-50 transition-colors cursor-pointer overflow-hidden">
+                  <input type="file" className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" accept="image/*" onChange={(e) => handleLogoUpload(e, 'logoLeft')} />
+                  {header.logoLeft ? (
+                    <img src={header.logoLeft} alt="Logo Kiri" className="w-full h-full object-contain p-1" />
+                  ) : (
+                    <>
+                      <ImageIcon className="w-6 h-6 text-slate-400 mb-1" />
+                      <span className="text-[10px] text-slate-500 font-medium">Logo Kiri</span>
+                    </>
+                  )}
+                  {header.logoLeft && <span className="absolute bottom-1 text-[8px] text-blue-600 bg-white/80 px-1 rounded z-20 cursor-pointer pointer-events-none">Hapus</span>}
+                </div>
+
+                {/* School Details */}
+                <div className="flex-1 flex flex-col justify-center items-center gap-1.5">
+                  <input className="text-sm font-bold text-center w-full bg-transparent border border-transparent hover:border-slate-300 focus:outline-none focus:border-blue-500 rounded px-1 transition-colors" value={header.schoolName} onChange={(e) => setHeaderField('schoolName', e.target.value)} />
+                  <input className="text-[10px] text-center w-full bg-transparent border border-transparent hover:border-slate-300 focus:outline-none focus:border-blue-500 rounded px-1 transition-colors" value={header.schoolAddress} onChange={(e) => setHeaderField('schoolAddress', e.target.value)} />
+                  <input className="text-[10px] text-center w-full bg-transparent border border-transparent hover:border-slate-300 focus:outline-none focus:border-blue-500 rounded px-1 transition-colors" value={header.schoolContact} onChange={(e) => setHeaderField('schoolContact', e.target.value)} />
+                  <input className="text-[10px] text-center w-full bg-transparent border border-transparent hover:border-slate-300 focus:outline-none focus:border-blue-500 rounded px-1 transition-colors" value={header.schoolEmail} onChange={(e) => setHeaderField('schoolEmail', e.target.value)} />
+                </div>
+
+                {/* Logo Right */}
+                <div className="w-20 shrink-0 flex flex-col items-center justify-center border-2 border-dashed border-slate-300 rounded-lg bg-white relative hover:bg-slate-50 transition-colors cursor-pointer overflow-hidden">
+                  <input type="file" className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10" accept="image/*" onChange={(e) => handleLogoUpload(e, 'logoRight')} />
+                  {header.logoRight ? (
+                    <img src={header.logoRight} alt="Logo Kanan" className="w-full h-full object-contain p-1" />
+                  ) : (
+                    <>
+                      <ImageIcon className="w-6 h-6 text-slate-400 mb-1" />
+                      <span className="text-[10px] text-slate-500 font-medium">Logo Kanan</span>
+                    </>
+                  )}
+                  {header.logoRight && <span className="absolute bottom-1 text-[8px] text-blue-600 bg-white/80 px-1 rounded z-20 cursor-pointer pointer-events-none">Hapus</span>}
+                </div>
+              </div>
+
+              {/* Form Metadata */}
+              <div className="mt-5 grid grid-cols-2 gap-4">
+                <div className="col-span-2 md:col-span-1">
+                  <label className="text-[11px] font-semibold text-slate-500 mb-1.5 block">Header Soal</label>
+                  <input className="w-full text-sm p-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all placeholder:text-slate-400" value={header.judulUjian} onChange={(e) => setHeaderField('judulUjian', e.target.value)} />
+                </div>
+                <div className="col-span-2 md:col-span-1">
+                  <label className="text-[11px] font-semibold text-slate-500 mb-1.5 block">Mata Pelajaran</label>
+                  <input className="w-full text-sm p-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all placeholder:text-slate-400" value={header.mataPelajaran} onChange={(e) => setHeaderField('mataPelajaran', e.target.value)} />
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-500 mb-1.5 block">Kelas</label>
+                  <input className="w-full text-sm p-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all placeholder:text-slate-400" value={header.kelas} onChange={(e) => setHeaderField('kelas', e.target.value)} />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-500 mb-1.5 block">Tahun Ajaran</label>
+                  <div className="relative">
+                     <select className="w-full appearance-none text-sm p-2.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all pr-8" value={header.tahunAjaran} onChange={(e) => setHeaderField('tahunAjaran', e.target.value)}>
+                       <option value="2023/2024">2023/2024</option>
+                       <option value="2024/2025">2024/2025</option>
+                     </select>
+                     <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-500 mb-1.5 block">Waktu</label>
+                  <input className="w-full text-sm p-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all placeholder:text-slate-400" value={header.waktu} onChange={(e) => setHeaderField('waktu', e.target.value)} />
+                </div>
+              </div>
+            </div>
+
+            {/* Questions List */}
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-slate-800 text-sm">Editor Soal</h3>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                 {questions.map((_, index) => (
+                   <button 
+                     key={index}
+                     onClick={() => setActiveQuestionIndex(index)}
+                     className={`w-8 h-8 rounded flex items-center justify-center text-xs font-semibold transition-colors ${activeQuestionIndex === index ? 'bg-blue-600 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                   >
+                     {index + 1}
+                   </button>
+                 ))}
+                 {questions.length === 0 && <div className="text-sm text-slate-500 italic">Belum ada soal. Silakan tambah komponen soal.</div>}
+              </div>
+            </div>
+            
+            {questions.length > 0 && <div className="space-y-4 pb-12 mt-4">
+              {[questions[activeQuestionIndex]].filter(Boolean).map((q, _) => {
+                const index = activeQuestionIndex;
+                return (
+
+                <div key={q.id} className="bg-white rounded-xl shadow-[0_2px_10px_rgb(0,0,0,0.04)] border border-slate-200 overflow-hidden">
+                  <div className="px-5 py-3 flex items-center justify-between border-b border-slate-100">
+                    <button className="flex items-center gap-2 text-sm font-semibold text-slate-800 focus:outline-none uppercase">
+                       {index + 1}. {q.type.replace('_', ' ')}
+                    </button>
+                    <button onClick={() => deleteQuestion(q.id)} className="text-slate-400 hover:text-red-500 p-1.5 hover:bg-red-50 rounded-lg transition-colors">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="p-5 space-y-5">
+                    {/* Soal Text */}
+                    <div className="relative">
+                      <textarea 
+                        rows={2} 
+                        className="w-full text-sm p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-100 focus:border-blue-500 outline-none resize-none bg-slate-50/50" 
+                        placeholder="Tuliskan soal di sini..."
+                        value={q.text}
+                        onChange={(e) => updateQuestion(q.id, { text: e.target.value })}
+                      />
+                      <div className="mt-3">
+                        {q.imageUrl ? (
+                          <div className="relative inline-block group">
+                            <img src={q.imageUrl} alt="Lampiran Soal" style={{ width: q.imageWidth ? `${q.imageWidth}cm` : 'auto', height: q.imageHeight ? `${q.imageHeight}cm` : 'auto' }} className="max-h-40 rounded-lg border border-slate-200" />
+                            <button 
+                              onClick={() => updateQuestion(q.id, { imageUrl: undefined, imageWidth: undefined, imageHeight: undefined })}
+                              className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600 transition-colors shadow-sm z-10"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                             <input 
+                               type="file" 
+                               accept="image/*"
+                               id={`img-upload-${q.id}`}
+                               className="hidden"
+                               onChange={async (e) => {
+                                 const file = e.target.files?.[0];
+                                 if (file) {
+                                   setIsUploading(true);
+                                   const toastId = toast.loading('Mengunggah gambar ke R2...');
+                                   try {
+                                      const url = await cloudflareService.uploadToR2(file);
+                                      setImageModalConfig({ isOpen: true, tempUrl: url, questionId: q.id, widthCm: 10, heightCm: 10 });
+                                      toast.success('Gambar berhasil diunggah!', { id: toastId });
+                                   } catch (err) {
+                                      toast.error('Gagal mengunggah gambar.');
+                                      toast.dismiss(toastId);
+                                   } finally {
+                                      setIsUploading(false);
+                                   }
+                                 }
+                               }}
+                             />
+                             <label 
+                               htmlFor={`img-upload-${q.id}`} 
+                               className="cursor-pointer flex items-center gap-2 text-xs font-medium text-slate-500 hover:text-blue-600 bg-slate-100 hover:bg-blue-50 px-3 py-1.5 rounded-lg transition-colors border border-slate-200 hover:border-blue-200"
+                             >
+                                <ImageIcon className="w-4 h-4" />
+                                Tambahkan Gambar
+                             </label>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Options */}
+                    {(q.type === 'pg') && q.options && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {q.options.map((opt, oIdx) => (
+                          <div 
+                            key={opt.id} 
+                            className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${q.correctAnswer === opt.id ? 'border-green-500 bg-green-50 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300'}`}
+                          >
+                             <button 
+                               onClick={() => updateQuestion(q.id, { correctAnswer: opt.id })}
+                               className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 transition-colors ${q.correctAnswer === opt.id ? 'border-green-500 text-green-600 bg-white' : 'border-slate-300 text-transparent hover:border-slate-400'}`}
+                             >
+                                <Check className="w-3 h-3" />
+                             </button>
+                             <span className="text-sm font-semibold text-slate-400 w-4">{opt.id}.</span>
+                             <input 
+                               className="text-sm bg-transparent border-none flex-1 focus:ring-0 p-0 text-slate-700 font-medium focus:outline-none" 
+                               value={opt.text}
+                               onChange={(e) => updateOption(q.id, oIdx, e.target.value)}
+                               placeholder={`Opsi ${opt.id}`}
+                             />
+                             {q.correctAnswer === opt.id && <Check className="w-4 h-4 text-green-600 shrink-0" />}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Meta: Kunci */}
+                    <div className="grid grid-cols-1 gap-4 border-t border-slate-100 pt-5 mt-2">
+                      <div>
+                        <label className="text-[11px] font-semibold text-slate-500 mb-1.5 block">Kunci Jawaban</label>
+                        <select 
+                          className="w-full text-sm p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500"
+                          value={q.correctAnswer}
+                          onChange={(e) => updateQuestion(q.id, { correctAnswer: e.target.value })}
+                        >
+                          {q.options?.map(o => <option key={o.id} value={o.id}>{o.id}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    
+                    {/* Pembahasan */}
+                    <div className="pt-2">
+                      <label className="text-[11px] font-semibold text-slate-500 mb-1.5 block">Pembahasan <span className="font-normal">(Opsional)</span></label>
+                      <input 
+                        className="w-full text-sm p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500"
+                        value={q.pembahasan}
+                        onChange={(e) => updateQuestion(q.id, { pembahasan: e.target.value })}
+                        placeholder="Contoh: 2.456 + 3.789 = 6.245"
+                      />
+                    </div>
+                  </div>
+                  <div className="bg-slate-50 border-t border-slate-100 px-5 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                     <span className="text-xs text-slate-600 font-medium">Soal {index + 1} dari {questions.length}</span>
+                     <div className="flex items-center gap-4">
+                        <Button onClick={handleSaveDraft} disabled={isSaving} size="sm" className="bg-blue-600 hover:bg-blue-700 shadow flex items-center gap-2 disabled:opacity-50">
+                           {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                           {isSaving ? 'Menyimpan...' : 'Simpan'}
+                        </Button>
+                     </div>
+                  </div>
+                </div>
+                );
+              })}
+            </div>}
+            
+          </div>
+        </div>
+
+        {/* Right Pane - Preview & Settings */}
+        <div className="flex-1 flex flex-col bg-[#eef1f6] relative print:bg-white overflow-hidden">
+          
+          {/* Tambah Komponen Soal */}
+          <div className="bg-white border-b border-slate-200 p-5 shrink-0 print:hidden z-20 shadow-sm relative">
+            <div className="flex items-center justify-between mb-4">
+               <h3 className="font-semibold text-slate-800 text-sm">Jenis Komponen Soal</h3>
+               <Button size="sm" onClick={() => setIsAIModalOpen(true)} className="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 hover:text-indigo-800 border-none shadow-none font-semibold h-8 rounded-lg gap-2 ring-1 ring-indigo-200">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Buat dengan AI
+               </Button>
+            </div>
+            <div className="flex flex-nowrap overflow-x-auto gap-2 pb-2 no-scrollbar">
+               {[
+                 { id:'pg', label:'PG', icon: ListTodo, color: 'text-blue-600' },
+                 { id:'isian', label:'Isian', icon: AlignLeft },
+                 { id:'uraian', label:'Uraian', icon: FileText },
+               ].map((item, index) => (
+                 <button 
+                   key={item.label} 
+                   onClick={() => addQuestion(item.id as any)}
+                   className="flex-none flex items-center p-2.5 rounded-lg border text-[11px] font-semibold cursor-pointer transition-all gap-2 border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 active:scale-95"
+                 >
+                   <div className="p-1.5 rounded bg-slate-100 text-slate-500">
+                      <item.icon className="w-4 h-4" />
+                   </div>
+                   <span className="leading-tight pr-1 whitespace-nowrap">{item.label}</span>
+                 </button>
+               ))}
+            </div>
+          </div>
+
+          {/* Zoom Toolbar & Pagination */}
+          <div className="h-14 bg-white/80 backdrop-blur-sm border-b border-slate-200 flex items-center justify-between px-4 shadow-sm z-10 print:hidden shrink-0">
+            <div className="flex items-center gap-3">
+              <button className="p-1.5 hover:bg-slate-100 text-slate-600 rounded transition-colors" onClick={() => setZoom(Math.max(50, zoom - 10))}><Minus className="w-4 h-4" /></button>
+              <span className="text-xs font-bold text-slate-700 w-12 text-center select-none">{zoom}%</span>
+              <button className="p-1.5 hover:bg-slate-100 text-slate-600 rounded transition-colors" onClick={() => setZoom(Math.min(200, zoom + 10))}><Plus className="w-4 h-4" /></button>
+              <div className="w-px h-5 bg-slate-300 mx-2"></div>
+              <button className="p-1.5 hover:bg-slate-100 text-slate-600 rounded transition-colors"><Maximize2 className="w-4 h-4" /></button>
+              <div className="w-px h-5 bg-slate-300 mx-2"></div>
+              <button className="p-1.5 hover:bg-slate-100 text-slate-600 rounded transition-colors tooltip" title="Pengaturan PDF" onClick={() => setIsPdfSettingsOpen(true)}><Settings className="w-4 h-4" /></button>
+              <button className="p-1.5 hover:bg-slate-100 text-slate-600 rounded transition-colors tooltip" title="Download PDF" onClick={handlePrint}><Download className="w-4 h-4" /></button>
+              <button className="p-1.5 hover:bg-slate-100 text-slate-600 rounded transition-colors tooltip" title="Simpan ke Bank Soal" onClick={() => toast.success("Soal berhasil disimpan ke bank soal!")}><Save className="w-4 h-4" /></button>
+            </div>
+            
+            <div className="flex items-center gap-3">
+               <button 
+                  disabled={currentPage <= 1}
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  className="p-1.5 hover:bg-slate-100 text-slate-600 rounded transition-colors disabled:opacity-50"
+               >
+                  <ChevronLeft className="w-4 h-4" />
+               </button>
+               <span className="text-xs font-bold text-slate-700 select-none">Halaman {currentPage} dari {totalPages}</span>
+               <button 
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  className="p-1.5 hover:bg-slate-100 text-slate-600 rounded transition-colors disabled:opacity-50"
+               >
+                  <ChevronLeft className="w-4 h-4 rotate-180" />
+               </button>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto w-full p-4 md:p-8 flex-col items-center justify-start print:p-0 no-scrollbar gap-8">
+             
+             {/* Document Container */}
+             {pages.map((pageQuestions, pageIndex) => {
+               const pageNum = pageIndex + 1;
+               const isVisible = pageNum === currentPage;
+               return (
+                 <div 
+                    key={pageIndex}
+                    className={`bg-white shadow-xl relative transition-transform origin-top print:shadow-none print:m-0 print:block mx-auto ${isVisible ? 'block' : 'hidden print:block'}`}
+                    style={{ 
+                       width: `${docWidth}mm`,
+                       minHeight: `${docHeight}mm`,
+                       transform: isVisible ? `scale(${zoom / 100})` : 'none',
+                       marginBottom: isVisible ? `${((zoom / 100) * docHeight) - docHeight + 50}mm` : '0',
+                       breakAfter: 'page'
+                    }}
+                 >
+                    {/* Visual Margins (Dotted lines simulation) */}
+                    <div className="absolute inset-x-0 border-t border-dashed border-slate-300 pointer-events-none print:hidden flex justify-start pl-8" style={{ top: `${parseFloat(pdfSettings.marginTop) || 1.5}cm` }}>
+                       <span className="bg-slate-50 text-[10px] px-1.5 py-0.5 -translate-y-1/2 text-slate-500 absolute font-medium rounded border border-slate-200">{parseFloat(pdfSettings.marginTop) || 1.5} cm</span>
+                    </div>
+                    <div className="absolute inset-x-0 border-b border-dashed border-slate-300 pointer-events-none print:hidden flex justify-start pl-8" style={{ bottom: `${parseFloat(pdfSettings.marginBottom) || 1.5}cm` }}>
+                       <span className="bg-slate-50 text-[10px] px-1.5 py-0.5 translate-y-1/2 text-slate-500 absolute font-medium rounded border border-slate-200">{parseFloat(pdfSettings.marginBottom) || 1.5} cm</span>
+                    </div>
+                    <div className="absolute inset-y-0 border-l border-dashed border-slate-300 pointer-events-none print:hidden flex items-center" style={{ left: `${parseFloat(pdfSettings.marginLeft) || 1.5}cm` }}>
+                       <span className="bg-slate-50 text-[10px] px-1.5 py-0.5 -translate-x-1/2 text-slate-500 font-medium rounded border border-slate-200 absolute rotate-[-90deg] whitespace-nowrap">{parseFloat(pdfSettings.marginLeft) || 1.5} cm</span>
+                    </div>
+                    <div className="absolute inset-y-0 border-r border-dashed border-slate-300 pointer-events-none print:hidden flex items-center justify-end" style={{ right: `${parseFloat(pdfSettings.marginRight) || 1.5}cm` }}>
+                       <span className="bg-slate-50 text-[10px] px-1.5 py-0.5 translate-x-1/2 text-slate-500 font-medium rounded border border-slate-200 absolute rotate-90 whitespace-nowrap">{parseFloat(pdfSettings.marginRight) || 1.5} cm</span>
+                    </div>
+    
+                    {/* Actual Printed Content Area */}
+                    <div 
+                       className="w-full text-black min-h-full flex flex-col"
+                       style={{ 
+                          paddingTop: `${parseFloat(pdfSettings.marginTop) || 1.5}cm`,
+                          paddingBottom: `${parseFloat(pdfSettings.marginBottom) || 1.5}cm`,
+                          paddingLeft: `${parseFloat(pdfSettings.marginLeft) || 1.5}cm`,
+                          paddingRight: `${parseFloat(pdfSettings.marginRight) || 1.5}cm`,
+                          fontFamily: pdfSettings.fontFamily === 'Times New Roman' ? '"Times New Roman", Times, serif' : 'Arial, sans-serif',
+                          fontSize: pdfSettings.fontSize === '12 pt' ? '12pt' : '11pt'
+                       }}
+                    >
+                       {/* Header Render - ONLY ON FIRST PAGE */}
+                       {pageNum === 1 && (
+                         <>
+                           <div className="flex gap-4 border-b-2 border-black pb-4 mb-5 border-double border-b-[3px]">
+                              <div className="w-20 lg:w-24 shrink-0 flex items-center justify-center">
+                                {header.logoLeft && <img src={header.logoLeft} alt="Logo" className="w-auto h-20 lg:h-24 object-contain" />}
+                              </div>
+                              <div className="flex-1 text-center flex flex-col justify-center">
+                                 <h2 className="font-bold text-lg lg:text-xl uppercase tracking-wider">{header.schoolName}</h2>
+                                 <p className="text-sm leading-snug">{header.schoolAddress}</p>
+                                 <p className="text-sm leading-snug">{header.schoolContact}</p>
+                                 <p className="text-sm leading-snug">{header.schoolEmail}</p>
+                              </div>
+                              <div className="w-20 lg:w-24 shrink-0 flex items-center justify-center">
+                                {header.logoRight && <img src={header.logoRight} alt="Logo" className="w-auto h-20 lg:h-24 object-contain" />}
+                              </div>
+                           </div>
+        
+                           {/* Title Render */}
+                           <div className="text-center mb-8">
+                              <h3 className="font-bold text-base lg:text-lg uppercase tracking-wider mb-1">{header.judulUjian}</h3>
+                              <h3 className="font-bold text-base lg:text-lg uppercase tracking-wider">TAHUN AJARAN {header.tahunAjaran}</h3>
+                           </div>
+        
+                           {/* Meta Details */}
+                           <div className="grid grid-cols-2 max-w-2xl text-justify mb-8 px-4 gap-x-12">
+                              <div className="space-y-3">
+                                 <div className="flex"><span className="w-32 font-medium">Mata Pelajaran</span><span className="mx-2">:</span><span>{header.mataPelajaran}</span></div>
+                                 <div className="flex"><span className="w-32 font-medium">Kelas</span><span className="mx-2">:</span><span>{header.kelas}</span></div>
+                              </div>
+                              <div className="space-y-3">
+                                 <div className="flex"><span className="w-24 font-medium">Nama</span><span className="mx-2">:</span><span className="flex-1 border-b border-black border-dotted mr-4"></span></div>
+                                 <div className="flex"><span className="w-24 font-medium">Waktu</span><span className="mx-2">:</span><span>{header.waktu}</span></div>
+                              </div>
+                           </div>
+                         </>
+                       )}
+    
+                       {/* Questions Block */}
+                       <div className="space-y-6 flex-1">
+                         {(['pg', 'isian', 'uraian'] as const).map(type => {
+                           const group = pageQuestions.filter(q => q.type === type);
+                           if (group.length === 0) return null;
+                           
+                           const globalGroup = questions.filter(q => q.type === type);
+                           const startIndex = globalGroup.findIndex(q => q.id === group[0].id) + 1;
+                           
+                           const typeLabels: Record<string, string> = {
+                             'pg': 'I. PILIHAN GANDA',
+                             'isian': 'II. ISIAN',
+                             'uraian': 'III. URAIAN',
+                           };
+                           const typeInstructions: Record<string, string> = {
+                             'pg': 'Pilihlah jawaban yang paling tepat!',
+                             'isian': 'Isilah titik-titik di bawah ini dengan jawaban yang tepat!',
+                             'uraian': 'Jawablah pertanyaan-pertanyaan di bawah ini dengan jelas dan benar!',
+                           };
+                           return (
+                             <div key={type} className="mb-8 break-inside-avoid">
+                               <h4 className="font-bold mb-4 uppercase tracking-wider">{typeLabels[type]}</h4>
+                               <p className="font-bold mb-4">{typeInstructions[type]}</p>
+                               <ol className="list-decimal pl-6 space-y-5" start={startIndex}>
+                                 {group.map((q, idx) => (
+                                   <li key={q.id} className="pl-2">
+                                     <p className="mb-2.5 whitespace-pre-wrap">{q.text || `Soal ${questions.indexOf(q) + 1} (${q.type})`}</p>
+                                     {q.imageUrl && <div className="mb-3 mt-3"><img src={q.imageUrl} alt="Lampiran" style={{ width: q.imageWidth ? `${q.imageWidth}cm` : 'auto', height: q.imageHeight ? `${q.imageHeight}cm` : 'auto' }} className="max-w-full object-contain border border-slate-200 p-1 rounded-sm" /></div>}
+                                     {(q.type === 'pg') && q.options && (
+                                       <div className={`grid gap-2 ${
+                                         Math.max(...(q.options.map(o => o.text.length) || [0])) < 20
+                                           ? 'grid-cols-4'
+                                           : Math.max(...(q.options.map(o => o.text.length) || [0])) < 45
+                                             ? 'grid-cols-2'
+                                             : 'grid-cols-1'
+                                       }`}>
+                                          {q.options.map(opt => (
+                                            <div key={opt.id} className="flex gap-1">
+                                              <span className="font-semibold w-5 shrink-0 text-left">{opt.id}.</span> <span>{opt.text}</span>
+                                            </div>
+                                          ))}
+                                       </div>
+                                     )}
+                                     {(q.type === 'isian' || q.type === 'uraian') && (
+                                       <div className="mt-4 space-y-4">
+                                         <div className="border-b border-dotted border-black w-full h-4"></div>
+                                         <div className="border-b border-dotted border-black w-full h-4"></div>
+                                         {q.type === 'uraian' && (
+                                            <>
+                                              <div className="border-b border-dotted border-black w-full h-4"></div>
+                                              <div className="border-b border-dotted border-black w-full h-4"></div>
+                                            </>
+                                         )}
+                                       </div>
+                                     )}
+                                   </li>
+                                 ))}
+                               </ol>
+                             </div>
+                           );
+                         })}
+                       </div>
+                   </div>
+                 </div>
+               );
+             })}
+             
+             
+          {/* PDF Settings Floating Modal */}
+             {isPdfSettingsOpen && (
+             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm print:hidden">
+               <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[420px] overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
+                  <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                     <h3 className="font-bold text-slate-800 text-[16px]">Pengaturan PDF</h3>
+                     <button onClick={() => setIsPdfSettingsOpen(false)} className="p-1 hover:bg-slate-200 rounded-full text-slate-500 transition-colors">
+                        <X className="w-5 h-5" />
+                     </button>
+                  </div>
+                  
+                  <div className="p-5 space-y-6 overflow-y-auto no-scrollbar flex-1">
+                     
+                     {/* Ukuran Kertas */}
+                     <div className="space-y-1.5">
+                        <label className="text-[13px] font-medium text-slate-700">Ukuran Kertas</label>
+                        <div className="relative">
+                           <select 
+                             className="w-full appearance-none text-[13px] p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all shadow-sm"
+                             value={pdfSettings.paperSize}
+                             onChange={(e) => setPdfSetting('paperSize', e.target.value)}
+                           >
+                              <option value="F4">F4 (21,0 x 33,0 cm)</option>
+                              <option value="A4">A4 (21,0 x 29,7 cm)</option>
+                           </select>
+                           <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                        </div>
+                     </div>
+                     
+                     {/* Orientasi */}
+                     <div className="space-y-1.5">
+                        <label className="text-[13px] font-medium text-slate-700">Orientasi</label>
+                        <div className="relative">
+                           <select 
+                             className="w-full appearance-none text-[13px] p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all shadow-sm"
+                             value={pdfSettings.orientation}
+                             onChange={(e) => setPdfSetting('orientation', e.target.value)}
+                           >
+                              <option value="Portrait">Portrait</option>
+                              <option value="Landscape">Landscape</option>
+                           </select>
+                           <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                        </div>
+                     </div>
+
+                     {/* Margin */}
+                     <div>
+                        <label className="text-[13px] font-medium text-slate-700 mb-2 block">Margin</label>
+                        <div className="grid grid-cols-2 gap-3 mb-4">
+                           <div className="space-y-1">
+                              <span className="text-[11px] text-slate-500 font-medium">Atas</span>
+                              <div className="relative">
+                                 <input type="text" className="w-full text-[13px] p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 shadow-sm focus:outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all" value={pdfSettings.marginTop} onChange={(e) => setPdfSetting('marginTop', e.target.value)} />
+                                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[13px] text-slate-400 bg-transparent pointer-events-none">cm</span>
+                              </div>
+                           </div>
+                           <div className="space-y-1">
+                              <span className="text-[11px] text-slate-500 font-medium">Bawah</span>
+                              <div className="relative">
+                                 <input type="text" className="w-full text-[13px] p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 shadow-sm focus:outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all" value={pdfSettings.marginBottom} onChange={(e) => setPdfSetting('marginBottom', e.target.value)} />
+                                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[13px] text-slate-400 bg-transparent pointer-events-none">cm</span>
+                              </div>
+                           </div>
+                           <div className="space-y-1">
+                              <span className="text-[11px] text-slate-500 font-medium">Kiri</span>
+                              <div className="relative">
+                                 <input type="text" className="w-full text-[13px] p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 shadow-sm focus:outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all" value={pdfSettings.marginLeft} onChange={(e) => setPdfSetting('marginLeft', e.target.value)} />
+                                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[13px] text-slate-400 bg-transparent pointer-events-none">cm</span>
+                              </div>
+                           </div>
+                           <div className="space-y-1">
+                              <span className="text-[11px] text-slate-500 font-medium">Kanan</span>
+                              <div className="relative">
+                                 <input type="text" className="w-full text-[13px] p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 shadow-sm focus:outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all" value={pdfSettings.marginRight} onChange={(e) => setPdfSetting('marginRight', e.target.value)} />
+                                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[13px] text-slate-400 bg-transparent pointer-events-none">cm</span>
+                              </div>
+                           </div>
+                        </div>
+                        <div className="flex items-center gap-2 text-emerald-600 text-[13px] bg-emerald-50 p-2 rounded-lg border border-emerald-100/50">
+                           <Check className="w-4 h-4" /> <span className="font-medium">Semua margin 1.5 cm</span>
+                        </div>
+                     </div>
+
+                     {/* Font */}
+                     <div className="space-y-4">
+                        <div>
+                           <label className="text-[13px] font-medium text-slate-700 mb-1.5 block">Font</label>
+                           <div className="relative">
+                              <select 
+                                className="w-full appearance-none text-[13px] p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all shadow-sm"
+                                value={pdfSettings.fontFamily}
+                                onChange={(e) => setPdfSetting('fontFamily', e.target.value)}
+                              >
+                                 <option value="Times New Roman">Times New Roman</option>
+                                 <option value="Arial">Arial</option>
+                              </select>
+                              <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                           </div>
+                        </div>
+                        
+                        <div>
+                           <label className="text-[13px] font-medium text-slate-700 mb-1.5 block">Ukuran Font</label>
+                           <div className="relative">
+                              <select 
+                                className="w-full appearance-none text-[13px] p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all shadow-sm"
+                                value={pdfSettings.fontSize}
+                                onChange={(e) => setPdfSetting('fontSize', e.target.value)}
+                              >
+                                 <option value="12 pt">12 pt</option>
+                                 <option value="11 pt">11 pt</option>
+                              </select>
+                              <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                           </div>
+                        </div>
+                     </div>
+                     
+                  </div>
+
+                  <div className="px-5 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+                     <p className="text-[13px] font-medium text-slate-500">Total Halaman: {totalPages}</p>
+                     <Button onClick={() => setIsPdfSettingsOpen(false)} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium text-sm transition-colors shadow-sm gap-2">
+                        <Check className="w-4 h-4" /> Simpan
+                     </Button>
+                  </div>
+               </div>
+             </div>
+             )}
+
+          </div>
+        </div>
+
+      </div>
+      
+      {/* Image Resize Modal */}
+      {imageModalConfig?.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm print:hidden">
+           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[500px] overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
+              <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                 <h3 className="font-bold text-slate-800 text-[16px]">Pengaturan Gambar</h3>
+                 <button onClick={() => setImageModalConfig(null)} className="p-1 hover:bg-slate-200 rounded-full text-slate-500 transition-colors">
+                    <X className="w-5 h-5" />
+                 </button>
+              </div>
+              <div className="p-5 space-y-6 overflow-y-auto no-scrollbar flex-1">
+                 <div className="flex justify-center bg-slate-100 p-2 rounded-lg overflow-x-auto relative">
+                    <img src={imageModalConfig.tempUrl} alt="Preview" style={{ width: imageModalConfig.widthCm > 0 ? `${imageModalConfig.widthCm}cm` : 'auto', height: imageModalConfig.heightCm > 0 ? `${imageModalConfig.heightCm}cm` : 'auto' }} className="object-contain bg-white border border-slate-300 transition-all max-w-full" />
+                 </div>
+                 <div className="grid grid-cols-2 gap-4">
+                    <div>
+                       <label className="text-[13px] font-medium text-slate-700 block mb-1.5">Lebar (cm)</label>
+                       <input 
+                         type="number" 
+                         className="w-full text-[13px] p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all shadow-sm"
+                         value={imageModalConfig.widthCm}
+                         onChange={(e) => setImageModalConfig({...imageModalConfig, widthCm: parseFloat(e.target.value) || 0})}
+                       />
+                    </div>
+                    <div>
+                       <label className="text-[13px] font-medium text-slate-700 block mb-1.5">Panjang/Tinggi (cm)</label>
+                       <input 
+                         type="number" 
+                         className="w-full text-[13px] p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all shadow-sm"
+                         value={imageModalConfig.heightCm}
+                         onChange={(e) => setImageModalConfig({...imageModalConfig, heightCm: parseFloat(e.target.value) || 0})}
+                       />
+                    </div>
+                 </div>
+                 <p className="text-xs text-slate-500 border border-blue-100 bg-blue-50 p-3 rounded-lg"><strong className="text-blue-700 block mb-1">Tips:</strong> Sesuaikan panjang dan lebar agar tercetak sempurna pada lembar soal. Kosongkan nilai (atau isi 0) untuk ukuran otomatis (auto). Satuan Centimeter (cm).</p>
+              </div>
+              <div className="px-5 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-3">
+                 <Button onClick={() => setImageModalConfig(null)} variant="outline" className="text-slate-600 bg-white shadow-sm border-slate-200">Batal</Button>
+                 <Button 
+                   onClick={() => {
+                     updateQuestion(imageModalConfig.questionId, { imageUrl: imageModalConfig.tempUrl, imageWidth: imageModalConfig.widthCm, imageHeight: imageModalConfig.heightCm });
+                     setImageModalConfig(null);
+                   }} 
+                   className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium text-sm transition-colors shadow-sm gap-2"
+                 >
+                    <Check className="w-4 h-4" /> Simpan Gambar
+                 </Button>
+              </div>
+           </div>
+        </div>
+      )}
+
+      <AIGeneratorModal isOpen={isAIModalOpen} onClose={() => setIsAIModalOpen(false)} />
+    </div>
+  );
+}
