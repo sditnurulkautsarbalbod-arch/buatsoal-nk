@@ -80,6 +80,7 @@ export default async function handler(req: any, res: any) {
       access: 'public',
       token,
       contentType: contentType || 'application/octet-stream',
+      addRandomSuffix: true,
     });
 
     return res.status(200).json({ url: blob.url, pathname: blob.pathname });
