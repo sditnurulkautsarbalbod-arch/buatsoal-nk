@@ -322,7 +322,7 @@ export default function AdminDashboard() {
                 <input type="file" accept=".json" onChange={handleImportBackup} className="absolute inset-0 opacity-0 cursor-pointer" />
                 <Button variant="outline" className="h-12 px-8 rounded-2xl gap-2 text-base border-slate-200">
                   <UploadIcon className="w-5 h-5" />
-                  Muar Backup
+                  Muat Backup
                 </Button>
               </div>
             </div>

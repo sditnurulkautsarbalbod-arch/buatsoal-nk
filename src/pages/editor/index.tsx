@@ -153,41 +153,43 @@ export default function EditorPage() {
         `}
       </style>
       {/* Top Header */}
-      <header className="bg-white border-b border-slate-200 h-16 flex items-center justify-between px-4 sticky top-0 z-20 shrink-0">
-        <div className="flex items-center gap-4 cursor-pointer md:hidden">
-          <Menu className="w-6 h-6 text-slate-600" />
-          <h1 className="text-lg font-bold">Editor Soal</h1>
-        </div>
-        <div className="hidden md:flex items-center gap-4 w-1/3">
-           <h1 className="text-lg font-bold text-slate-800 truncate">{header.judulUjian || "Contoh Soal Matematika"}</h1>
-           <button onClick={handleSaveDraft} disabled={isSaving} className="flex items-center gap-2 text-green-600 hover:bg-green-100 text-xs font-medium bg-green-50 px-2 py-1 rounded shrink-0 transition-colors disabled:opacity-50">
-             {isSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
-             {isSaving ? 'Menyimpan...' : 'Simpan Draft'}
-           </button>
-           <button className="text-slate-400 hover:text-slate-600">
-             <MoreVertical className="w-5 h-5" />
-           </button>
-        </div>
+      {!isFullscreen && (
+        <header className="bg-white border-b border-slate-200 h-16 flex items-center justify-between px-4 sticky top-0 z-20 shrink-0 print:hidden">
+          <div className="flex items-center gap-4 cursor-pointer md:hidden">
+            <Menu className="w-6 h-6 text-slate-600" />
+            <h1 className="text-lg font-bold">Editor Soal</h1>
+          </div>
+          <div className="hidden md:flex items-center gap-4 w-1/3">
+             <h1 className="text-lg font-bold text-slate-800 truncate">{header.judulUjian || "Contoh Soal Matematika"}</h1>
+             <button onClick={handleSaveDraft} disabled={isSaving} className="flex items-center gap-2 text-green-600 hover:bg-green-100 text-xs font-medium bg-green-50 px-2 py-1 rounded shrink-0 transition-colors disabled:opacity-50">
+               {isSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+               {isSaving ? 'Menyimpan...' : 'Simpan Draft'}
+             </button>
+             <button className="text-slate-400 hover:text-slate-600">
+               <MoreVertical className="w-5 h-5" />
+             </button>
+          </div>
 
-        {/* Center label (visible on desktop) */}
-        <div className="hidden md:flex items-center justify-center space-x-8 flex-1">
-           <div className="text-slate-800 font-semibold py-5">Editor Soal</div>
-        </div>
+          {/* Center label (visible on desktop) */}
+          <div className="hidden md:flex items-center justify-center space-x-8 flex-1">
+             <div className="text-slate-800 font-semibold py-5">Editor Soal</div>
+          </div>
 
-        <div className="flex items-center justify-end gap-4 w-1/3">
-           <div className="relative cursor-pointer">
-              <Bell className="w-5 h-5 text-slate-600" />
-              <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-white flex items-center justify-center text-[10px] text-white font-bold">3</div>
-           </div>
-           <div className="flex items-center gap-2 cursor-pointer">
-              <img src="https://ui-avatars.com/api/?name=Bu+Sari&background=random" alt="Avatar" className="w-8 h-8 rounded-full" />
-              <div className="hidden md:block text-right">
-                 <p className="text-sm font-semibold text-slate-800 leading-none">Bu Sari</p>
-                 <p className="text-xs text-slate-500">Guru</p>
-              </div>
-           </div>
-        </div>
-      </header>
+          <div className="flex items-center justify-end gap-4 w-1/3">
+             <div className="relative cursor-pointer">
+                <Bell className="w-5 h-5 text-slate-600" />
+                <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-white flex items-center justify-center text-[10px] text-white font-bold">3</div>
+             </div>
+             <div className="flex items-center gap-2 cursor-pointer">
+                <img src={`https://ui-avatars.com/api/?name=${user?.nama || 'Bu Sari'}&background=random`} alt="Avatar" className="w-8 h-8 rounded-full" />
+                <div className="hidden md:block text-right">
+                   <p className="text-sm font-semibold text-slate-800 leading-none">{user?.nama || 'Bu Sari'}</p>
+                   <p className="text-xs text-slate-500">{user?.role === 'admin' ? 'Admin' : 'Guru'}</p>
+                </div>
+             </div>
+          </div>
+        </header>
+      )}
 
       {/* Main Content Area: Split 50/50 Desktop */}
       <div className="flex-1 flex flex-col xl:flex-row overflow-hidden">
@@ -454,36 +456,38 @@ export default function EditorPage() {
         </div>
 
         {/* Right Pane - Preview & Settings */}
-        <div className="flex-1 flex flex-col bg-[#eef1f6] relative print:bg-white overflow-hidden">
+        <div className={`flex-1 flex flex-col bg-[#eef1f6] relative print:bg-white overflow-hidden transition-all duration-300 ${isFullscreen ? 'w-full' : ''}`}>
           
           {/* Tambah Komponen Soal */}
-          <div className="bg-white border-b border-slate-200 p-5 shrink-0 print:hidden z-20 shadow-sm relative">
-            <div className="flex items-center justify-between mb-4">
-               <h3 className="font-semibold text-slate-800 text-sm">Jenis Komponen Soal</h3>
-               <Button size="sm" onClick={() => setIsAIModalOpen(true)} className="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 hover:text-indigo-800 border-none shadow-none font-semibold h-8 rounded-lg gap-2 ring-1 ring-indigo-200">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  Buat dengan AI
-               </Button>
+          {!isFullscreen && (
+            <div className="bg-white border-b border-slate-200 p-5 shrink-0 print:hidden z-20 shadow-sm relative">
+              <div className="flex items-center justify-between mb-4">
+                 <h3 className="font-semibold text-slate-800 text-sm">Jenis Komponen Soal</h3>
+                 <Button size="sm" onClick={() => setIsAIModalOpen(true)} className="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 hover:text-indigo-800 border-none shadow-none font-semibold h-8 rounded-lg gap-2 ring-1 ring-indigo-200">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    Buat dengan AI
+                 </Button>
+              </div>
+              <div className="flex flex-nowrap overflow-x-auto gap-2 pb-2 no-scrollbar">
+                 {[
+                   { id:'pg', label:'PG', icon: ListTodo, color: 'text-blue-600' },
+                   { id:'isian', label:'Isian', icon: AlignLeft },
+                   { id:'uraian', label:'Uraian', icon: FileText },
+                 ].map((item, index) => (
+                   <button 
+                     key={item.label} 
+                     onClick={() => addQuestion(item.id as any)}
+                     className="flex-none flex items-center p-2.5 rounded-lg border text-[11px] font-semibold cursor-pointer transition-all gap-2 border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 active:scale-95"
+                   >
+                     <div className="p-1.5 rounded bg-slate-100 text-slate-500">
+                        <item.icon className="w-4 h-4" />
+                     </div>
+                     <span className="leading-tight pr-1 whitespace-nowrap">{item.label}</span>
+                   </button>
+                 ))}
+              </div>
             </div>
-            <div className="flex flex-nowrap overflow-x-auto gap-2 pb-2 no-scrollbar">
-               {[
-                 { id:'pg', label:'PG', icon: ListTodo, color: 'text-blue-600' },
-                 { id:'isian', label:'Isian', icon: AlignLeft },
-                 { id:'uraian', label:'Uraian', icon: FileText },
-               ].map((item, index) => (
-                 <button 
-                   key={item.label} 
-                   onClick={() => addQuestion(item.id as any)}
-                   className="flex-none flex items-center p-2.5 rounded-lg border text-[11px] font-semibold cursor-pointer transition-all gap-2 border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 active:scale-95"
-                 >
-                   <div className="p-1.5 rounded bg-slate-100 text-slate-500">
-                      <item.icon className="w-4 h-4" />
-                   </div>
-                   <span className="leading-tight pr-1 whitespace-nowrap">{item.label}</span>
-                 </button>
-               ))}
-            </div>
-          </div>
+          )}
 
           {/* Zoom Toolbar & Pagination */}
           <div className="h-14 bg-white/80 backdrop-blur-sm border-b border-slate-200 flex items-center justify-between px-4 shadow-sm z-10 print:hidden shrink-0">

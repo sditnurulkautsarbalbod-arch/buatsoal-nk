@@ -25,13 +25,12 @@ export default function LoginPage() {
       setIsLoading(true);
       setError(null);
   
-      // MOCK LOGIN FOR DEVELOPMENT PREVIEW
-      const isMock = !import.meta.env.VITE_GAS_API_URL || import.meta.env.VITE_GAS_API_URL === '';
-  
       try {
+        // Fallback mock login if API is not configured
+        const isMock = !import.meta.env.VITE_GAS_API_URL || import.meta.env.VITE_GAS_API_URL === '';
+        
         if (isMock) {
-          await new Promise(r => setTimeout(r, 1000));
-          
+          await new Promise(r => setTimeout(r, 800));
           const userMatch = users.find(u => u.username === username && u.password === password);
           
           if (userMatch) {
@@ -46,24 +45,24 @@ export default function LoginPage() {
           }
         }
 
-      // API ASLI KE GAS
-      const res = await apiClient.post('', { 
-        action: 'login', 
-        data: { username, password } 
-      });
+        // Real API Logic
+        const res = await apiClient.post('', { 
+          action: 'login', 
+          data: { username, password } 
+        });
 
-      if (res.data.token) {
-        login(res.data.user, res.data.token);
-        navigate('/', { replace: true });
-      } else {
-        setError(res.data.error || 'Login gagal.');
+        if (res.data.token) {
+          login(res.data.user, res.data.token);
+          navigate('/', { replace: true });
+        } else {
+          setError(res.data.error || 'Login gagal.');
+        }
+      } catch (err: any) {
+        setError(err.response?.data?.error || err.message || 'Terjadi kesalahan login.');
+      } finally {
+        setIsLoading(false);
       }
-    } catch (err: any) {
-      setError(err.response?.data?.error || err.message || 'Terjadi kesalahan jaringan.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4 py-12 sm:px-6 lg:px-8">
@@ -125,9 +124,9 @@ export default function LoginPage() {
             Masuk
           </Button>
           
-          <div className="text-center mt-4">
+          <div className="text-center mt-6">
             <p className="text-xs text-slate-400">
-              Versi Demo: <strong className="text-slate-500">admin / admin123</strong> atau <strong className="text-slate-500">guru / guru</strong>
+               &copy; {new Date().getFullYear()} EduScript Pro. All rights reserved.
             </p>
           </div>
         </form>

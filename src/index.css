@@ -20,7 +20,10 @@
   header, 
   .print\:hidden,
   [data-sonner-toaster],
-  .sonner-toast {
+  .sonner-toast,
+  .sonner-toast-container,
+  aside,
+  nav {
     display: none !important;
   }
 

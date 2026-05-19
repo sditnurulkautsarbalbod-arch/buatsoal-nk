@@ -10,6 +10,14 @@ export default function Dashboard() {
   const { user } = useAuthStore();
   const { drafts, deleteDraft } = useDraftStore();
   const isAdmin = user?.role === 'admin';
+  const { users } = useAuthStore();
+
+  const adminStats = [
+    { label: 'Total Guru', value: users.filter(u => u.role === 'guru').length.toString(), icon: Users, color: 'text-indigo-600', bg: 'bg-indigo-100' },
+    { label: 'Total Soal', value: drafts.length.toString(), icon: FileText, color: 'text-purple-600', bg: 'bg-purple-100' },
+    { label: 'PDF Dicetak', value: drafts.length > 0 ? (drafts.length * 2).toString() : '0', icon: Download, color: 'text-green-600', bg: 'bg-green-100' },
+    { label: 'Mapel Aktif', value: '12', icon: FileText, color: 'text-orange-600', bg: 'bg-orange-100' }
+  ];
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
@@ -35,12 +43,7 @@ export default function Dashboard() {
 
       {isAdmin && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { label: 'Total Guru', value: '24', icon: Users, color: 'text-indigo-600', bg: 'bg-indigo-100' },
-            { label: 'Total Soal', value: '1,420', icon: FileText, color: 'text-purple-600', bg: 'bg-purple-100' },
-            { label: 'PDF Dicetak', value: '356', icon: Download, color: 'text-green-600', bg: 'bg-green-100' },
-            { label: 'Mapel Aktif', value: '12', icon: FileText, color: 'text-orange-600', bg: 'bg-orange-100' }
-          ].map((stat, i) => (
+          {adminStats.map((stat, i) => (
             <div key={i} className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center text-center">
                <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-3 ${stat.bg} ${stat.color}`}>
                   <stat.icon className="w-6 h-6" />
