@@ -21,7 +21,7 @@ export default async function handler(req: any, res: any) {
     }
 
     const result = await db.query(sql, params || []);
-    return res.status(200).json({ success: true, data: result.rows });
+    return res.status(200).json({ success: true, results: result.rows });
   } catch (error: any) {
     console.error('Database query error:', error);
     return res.status(500).json({ success: false, error: error.message });

@@ -1,6 +1,5 @@
 import { put } from '@vercel/blob';
 import multer from 'multer';
-import { NextResponse } from 'next/server';
 
 // Note: Vercel Functions in some configurations prefer standard Request/Response
 // But for Express-like compatibility in Vercel, we can use this structure.
@@ -11,8 +10,18 @@ export const config = {
   },
 };
 
-const storage = multer.memoryStorage();
-const upload = multer({ storage });
+const upload = multer({ storage: multer.memoryStorage() });
+
+function runMiddleware(req: any, res: any, fn: any) {
+  return new Promise((resolve, reject) => {
+    fn(req, res, (result: any) => {
+      if (result instanceof Error) {
+        return reject(result);
+      }
+      return resolve(result);
+    });
+  });
+}
 
 export default async function handler(req: any, res: any) {
   if (req.method === 'OPTIONS') {
@@ -24,16 +33,25 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    // In Vercel, we might need a different way to handle multer if used as a standalone function
-    // For simplicity, if you are using Vercel Blob directly:
     const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
     if (!blobToken) {
-        return res.status(500).json({ error: 'BLOB_READ_WRITE_TOKEN missing' });
+      return res.status(500).json({ error: 'BLOB_READ_WRITE_TOKEN missing' });
     }
 
-    // This is a placeholder for the actual upload logic which usually requires parsing multipart
-    return res.status(200).json({ message: 'Upload endpoint ready' });
+    await runMiddleware(req, res, upload.single('file'));
+    
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const blob = await put(req.file.originalname, req.file.buffer, {
+      access: 'public',
+      token: blobToken
+    });
+
+    return res.status(200).json(blob);
   } catch (error: any) {
+    console.error('Upload error:', error);
     return res.status(500).json({ error: error.message });
   }
 }

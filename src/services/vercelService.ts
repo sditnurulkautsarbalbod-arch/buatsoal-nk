@@ -29,7 +29,7 @@ export const vercelService = {
     try {
       const response = await axios.post('/api/db/query', { sql, params });
       if (response.data.success) {
-        return response.data.results as T[];
+        return (response.data.results || []) as T[];
       }
       throw new Error(response.data.error || 'Query failed');
     } catch (error: any) {
