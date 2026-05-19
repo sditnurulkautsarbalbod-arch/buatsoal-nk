@@ -13,13 +13,8 @@
 }
 
 @media print {
-  @page {
-    size: 21.0cm 33.0cm; /* F4 size standard: 21.0 x 33.0 cm or 210 x 330 mm */
-    margin: 0;
-  }
-  
   /* Hide UI elements during print */
-  header, 
+  header,
   .print\:hidden,
   [data-sonner-toaster],
   .sonner-toast,

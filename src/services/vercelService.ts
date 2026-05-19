@@ -5,15 +5,25 @@ export const vercelService = {
    * Uploads a file to Vercel Blob via our proxy
    */
   async uploadToBlob(file: File | Blob): Promise<string> {
-    const formData = new FormData();
-    formData.append('file', file);
-
     try {
-      const response = await axios.post('/api/upload', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+      const filename = file instanceof File && file.name ? file.name : `upload-${Date.now()}.bin`;
+      const contentType = (file as File).type || 'application/octet-stream';
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject(new Error('Gagal membaca file untuk upload.'));
+        reader.readAsDataURL(file);
       });
+
+      const response = await axios.post('/api/upload', {
+        filename,
+        content: base64,
+        contentType,
+      });
+
+      if (!response.data?.url) {
+        throw new Error('Respons upload tidak mengandung URL file.');
+      }
       return response.data.url;
     } catch (error: any) {
       console.error('Upload to Vercel Blob failed:', error);

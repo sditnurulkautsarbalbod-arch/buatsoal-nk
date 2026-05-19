@@ -59,38 +59,37 @@ export default function EditorPage() {
   useEffect(() => {
     const updatePagination = () => {
       if (!docContainerRef.current) return;
-      const height = docContainerRef.current.getBoundingClientRect().height;
-      const pageHeightPx = (docHeight / 25.4) * 96; // convert mm to px at 96dpi
-      const count = Math.ceil(height / pageHeightPx);
+      const contentHeight = docContainerRef.current.offsetHeight;
+      const pageHeightPx = (docHeight / 25.4) * 96;
+      const count = Math.ceil(contentHeight / pageHeightPx);
       setTotalPages(Math.max(1, count));
     };
 
     const observer = new ResizeObserver(updatePagination);
     if (docContainerRef.current) observer.observe(docContainerRef.current);
+    updatePagination();
     return () => observer.disconnect();
-  }, [docHeight, questions, header]);
+  }, [docHeight, questions, header, pdfSettings, zoom]);
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const container = e.currentTarget;
-    const scrollPos = container.scrollTop;
-    const pageHeightPx = (docHeight / 25.4) * 96 * (zoom / 100);
-    const newPage = Math.floor(scrollPos / (pageHeightPx + 32)) + 1; // 32 is roughly the gap/margin between pages in some views, but here gap is 0
-    // Simplified scroll calculation
-    const height = container.scrollHeight;
-    const page = Math.ceil((scrollPos + container.clientHeight / 2) / (height / totalPages));
+    const scale = zoom / 100;
+    const scrollPosUnscaled = container.scrollTop / scale;
+    const pageHeightPx = (docHeight / 25.4) * 96;
+    const page = Math.floor(scrollPosUnscaled / pageHeightPx) + 1;
     setCurrentPage(Math.max(1, Math.min(totalPages, page)));
   };
 
   const scrollToPage = (page: number) => {
     if (!scrollContainerRef.current) return;
     const container = scrollContainerRef.current;
-    
-    // We want to scroll to the top of the specific simulated page
-    // The total document height in mm is docHeight * totalPages
-    // We need to convert it to px and then apply zoom
-    const pageHeightPx = (docHeight / 25.4) * 96 * (zoom / 100);
-    const targetScroll = (page - 1) * pageHeightPx;
-    
+    const clampedPage = Math.max(1, Math.min(totalPages, page));
+    const scale = zoom / 100;
+    const pageHeightPxUnscaled = (docHeight / 25.4) * 96;
+    const targetUnscaled = (clampedPage - 1) * pageHeightPxUnscaled;
+    const targetScroll = targetUnscaled * scale;
+
+    setCurrentPage(clampedPage);
     container.scrollTo({ top: targetScroll, behavior: 'smooth' });
   };
 
@@ -179,6 +178,18 @@ export default function EditorPage() {
             @page {
               size: ${pdfSettings.paperSize} ${isLandscape ? 'landscape' : 'portrait'};
               margin: 0;
+            }
+            .doc-header,
+            .section-block,
+            .section-heading,
+            .question-image,
+            .question-options {
+              break-inside: avoid;
+              page-break-inside: avoid;
+            }
+            .question-item {
+              break-inside: auto;
+              page-break-inside: auto;
             }
           }
           .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -690,18 +701,18 @@ export default function EditorPage() {
                              'uraian': 'Jawablah pertanyaan-pertanyaan di bawah ini dengan jelas dan benar!',
                            };
                            return (
-                             <div key={type} className="mb-0">
-                               <h4 className="font-bold mb-4 uppercase tracking-wider">{typeLabels[type]}</h4>
-                               <p className="font-bold mb-4 text-[11pt]">{typeInstructions[type]}</p>
+                             <div key={type} className="mb-0 section-block">
+                               <h4 className="font-bold mb-4 uppercase tracking-wider section-heading">{typeLabels[type]}</h4>
+                               <p className="font-bold mb-4 text-[11pt] section-heading">{typeInstructions[type]}</p>
                                <ol className="list-decimal pl-6 space-y-5" start={1} style={{ boxSizing: 'border-box' }}>
                                  {group.map((q, idx) => (
-                                   <li key={q.id} data-q-id={q.id} className="pl-2 break-inside-auto">
-                                     <p className="mb-2.5 whitespace-pre-wrap text-justify text-[11pt] leading-relaxed block" style={{ hyphens: 'auto', wordBreak: 'break-word', width: '100%', maxWidth: '100%' }}>
+                                   <li key={q.id} data-q-id={q.id} className="pl-2 break-inside-auto question-item">
+                                     <p className="mb-2.5 whitespace-pre-wrap text-justify text-[11pt] leading-[1.35] block" style={{ hyphens: 'auto', overflowWrap: 'anywhere', wordBreak: 'normal', width: '100%', maxWidth: '100%' }}>
                                        {q.text || `Soal ${questions.indexOf(q) + 1} (${q.type})`}
                                      </p>
-                                     {q.imageUrl && <div className="mb-3 mt-3"><img src={q.imageUrl} alt="Lampiran" style={{ width: q.imageWidth ? `${q.imageWidth}cm` : 'auto', height: q.imageHeight ? `${q.imageHeight}cm` : 'auto' }} className="max-w-full object-contain border border-slate-200 p-1 rounded-sm" /></div>}
+                                     {q.imageUrl && <div className="mb-3 mt-3 question-image"><img src={q.imageUrl} alt="Lampiran" style={{ width: q.imageWidth ? `${q.imageWidth}cm` : 'auto', height: q.imageHeight ? `${q.imageHeight}cm` : 'auto' }} className="max-w-full object-contain border border-slate-200 p-1 rounded-sm" /></div>}
                                      {(q.type === 'pg') && q.options && (
-                                       <div className={`grid gap-2 text-[11pt] ${
+                                       <div className={`grid gap-2 text-[11pt] question-options ${
                                          Math.max(...(q.options.map(o => o.text.length) || [0])) < 20
                                            ? 'grid-cols-4'
                                            : Math.max(...(q.options.map(o => o.text.length) || [0])) < 45
