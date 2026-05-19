@@ -24,30 +24,12 @@ import { toast } from 'sonner';
 type TabType = 'users' | 'headers' | 'settings' | 'drafts' | 'backup';
 
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<TabType>('users');
+  const [activeTab, setActiveTab] = useState<TabType>('headers');
   const [activeField, setActiveField] = useState<keyof HeaderOptions | null>(null);
-  const { users, addUser, editUser, deleteUser } = useAuthStore();
   const { options, addOption, editOption, deleteOption, defaultLogos, setDefaultLogos, defaultSchoolInfo, setDefaultSchoolInfo } = useAdminStore();
   const { drafts, deleteDraft } = useDraftStore();
-
-  /* Local States for Forms */
-  const [editingUser, setEditingUser] = useState<User | null>(null);
-  const [newUser, setNewUser] = useState({ nama: '', username: '', password: '', role: 'guru' as User['role'] });
   
   const [newOptionValue, setNewOptionValue] = useState('');
-
-  const handleAddUser = () => {
-    if (!newUser.nama || !newUser.username || !newUser.password) {
-      toast.error('Semua field harus diisi');
-      return;
-    }
-    addUser({
-      id: Date.now().toString(),
-      ...newUser
-    });
-    setNewUser({ nama: '', username: '', password: '', role: 'guru' });
-    toast.success('User berhasil ditambah');
-  };
 
   const handleExportBackup = () => {
     const backupData = {
@@ -97,7 +79,6 @@ export default function AdminDashboard() {
       {/* Tabs */}
       <div className="flex flex-nowrap overflow-x-auto gap-2 p-1 bg-slate-100 rounded-2xl w-fit border border-slate-200">
         {[
-          { id: 'users', label: 'Pengguna', icon: Users },
           { id: 'headers', label: 'Header Dropdown', icon: ListOrdered },
           { id: 'settings', label: 'Pengaturan Global', icon: SettingsIcon },
           { id: 'drafts', label: 'Seluruh Soal', icon: FileText },
@@ -118,61 +99,6 @@ export default function AdminDashboard() {
 
       {/* Tab Content */}
       <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 min-h-[500px]">
-        {activeTab === 'users' && (
-          <div className="p-6 space-y-6">
-            <div className="grid md:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
-              <Input placeholder="Nama Lengkap" value={newUser.nama} onChange={e => setNewUser({...newUser, nama: e.target.value})} />
-              <Input placeholder="Username" value={newUser.username} onChange={e => setNewUser({...newUser, username: e.target.value})} />
-              <Input type="password" placeholder="Password" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} />
-              <div className="flex gap-2">
-                <select 
-                  className="flex-1 p-2 bg-white border border-slate-200 rounded-xl text-sm"
-                  value={newUser.role}
-                  onChange={e => setNewUser({...newUser, role: e.target.value as any})}
-                >
-                  <option value="admin">Admin</option>
-                  <option value="guru">Guru</option>
-                  <option value="operator">Operator</option>
-                </select>
-                <Button onClick={handleAddUser} className="h-10 px-4"><Plus className="w-4 h-4" /></Button>
-              </div>
-            </div>
-
-            <div className="overflow-hidden border border-slate-100 rounded-2xl">
-              <table className="w-full text-left">
-                <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
-                  <tr>
-                    <th className="px-6 py-4 font-semibold">Nama</th>
-                    <th className="px-6 py-4 font-semibold">Username</th>
-                    <th className="px-6 py-4 font-semibold">Role</th>
-                    <th className="px-6 py-4 font-semibold text-right">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {users.map(u => (
-                    <tr key={u.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-6 py-4 text-sm font-medium text-slate-700">{u.nama}</td>
-                      <td className="px-6 py-4 text-sm text-slate-500">{u.username}</td>
-                      <td className="px-6 py-4 text-sm">
-                        <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase ${
-                          u.role === 'admin' ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-100 text-slate-600'
-                        }`}>{u.role}</span>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex justify-end gap-2">
-                          <button onClick={() => deleteUser(u.id)} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
         {activeTab === 'headers' && (
           <div className="p-6 grid lg:grid-cols-2 gap-8">
             {(Object.keys(options) as (keyof HeaderOptions)[]).map(field => (
@@ -196,7 +122,12 @@ export default function AdminDashboard() {
                   {options[field].map((opt, idx) => (
                     <div key={idx} className="flex items-center justify-between px-3 py-2 bg-white rounded-xl border border-slate-200 group">
                       <span className="text-sm text-slate-700">{opt}</span>
-                      <button onClick={() => deleteOption(field, idx)} className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all">
+                      <button onClick={() => {
+                        if (window.confirm(`Hapus opsi "${opt}"?`)) {
+                          deleteOption(field, idx);
+                          toast.success('Opsi berhasil dihapus');
+                        }
+                      }} className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all">
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
@@ -286,7 +217,12 @@ export default function AdminDashboard() {
                       <td className="px-6 py-4 text-right">
                         <div className="flex justify-end gap-2">
                            <Button variant="ghost" size="sm" className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50" onClick={() => window.open(`/editor?id=${d.id}`, '_blank')}>Buka</Button>
-                           <button onClick={() => deleteDraft(d.id)} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                           <button onClick={() => {
+                             if (window.confirm('Yakin hapus soal ini dari sistem?')) {
+                               deleteDraft(d.id);
+                               toast.success('Soal berhasil dihapus');
+                             }
+                           }} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>

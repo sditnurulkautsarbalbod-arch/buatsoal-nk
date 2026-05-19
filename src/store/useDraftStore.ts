@@ -24,6 +24,7 @@ interface DraftState {
   drafts: Draft[];
   saveDraft: (draft: Draft) => void;
   deleteDraft: (id: string) => void;
+  deleteDraftFromVercel: (id: string) => Promise<void>;
   fetchDraftsFromVercel: () => Promise<void>;
 }
 
@@ -43,6 +44,20 @@ export const useDraftStore = create<DraftState>()(
       deleteDraft: (id) => set((state) => ({
         drafts: state.drafts.filter(d => d.id !== id)
       })),
+      deleteDraftFromVercel: async (id) => {
+        try {
+          await vercelService.query('DELETE FROM drafts WHERE id = $1', [id]);
+          set((state) => ({
+            drafts: state.drafts.filter(d => d.id !== id)
+          }));
+        } catch (err) {
+          console.error('Failed to delete draft from Vercel:', err);
+          // Still remove locally for better UX
+          set((state) => ({
+            drafts: state.drafts.filter(d => d.id !== id)
+          }));
+        }
+      },
       fetchDraftsFromVercel: async () => {
         try {
           const results = await vercelService.query<any>('SELECT * FROM drafts ORDER BY updatedAt DESC');

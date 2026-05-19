@@ -1,16 +1,28 @@
 import React, { useEffect } from 'react';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useDraftStore } from '@/store/useDraftStore';
-import { Card } from '@/components/ui/Card'; // Will create this
+import { Card } from '@/components/ui/Card';
 import { FileText, Users, Download, PlusCircle, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
+import { toast } from 'sonner';
+import { ConfirmModal } from '@/components/ConfirmModal';
 
 export default function Dashboard() {
   const { user } = useAuthStore();
-  const { drafts, deleteDraft } = useDraftStore();
+  const { drafts, deleteDraftFromVercel } = useDraftStore();
   const isAdmin = user?.role === 'admin';
   const { users } = useAuthStore();
+  
+  const [deleteId, setDeleteId] = React.useState<string | null>(null);
+
+  const handleDelete = async () => {
+    if (deleteId) {
+      await deleteDraftFromVercel(deleteId);
+      setDeleteId(null);
+      toast.success('Draft berhasil dihapus dari sistem');
+    }
+  };
 
   const adminStats = [
     { label: 'Total Guru', value: users.filter(u => u.role === 'guru').length.toString(), icon: Users, color: 'text-indigo-600', bg: 'bg-indigo-100' },
@@ -85,9 +97,7 @@ export default function Dashboard() {
                   <Link to={`/editor?id=${draft.id}`}>
                     <Button variant="ghost" size="sm">Edit</Button>
                   </Link>
-                  <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-600 hover:bg-red-50" onClick={() => {
-                     if(window.confirm('Yakin hapus draft ini?')) deleteDraft(draft.id);
-                  }}>
+                  <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-600 hover:bg-red-50" onClick={() => setDeleteId(draft.id)}>
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 </div>
@@ -96,6 +106,14 @@ export default function Dashboard() {
           )}
         </div>
       </div>
+
+      <ConfirmModal 
+        isOpen={!!deleteId}
+        onClose={() => setDeleteId(null)}
+        onConfirm={handleDelete}
+        title="Hapus Draft Soal"
+        message="Apakah Anda yakin ingin menghapus draft soal ini? Tindakan ini tidak dapat dibatalkan."
+      />
       
     </div>
   );

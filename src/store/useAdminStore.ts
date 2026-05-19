@@ -30,11 +30,11 @@ interface AdminState {
 }
 
 const DEFAULT_OPTIONS: HeaderOptions = {
-  judulUjian: ['SUMATIF TENGAH SEMESTER (STS)', 'SUMATIF AKHIR SEMESTER (SAS)', 'UJIAN SEKOLAH'],
-  mataPelajaran: ['IPAS', 'Matematika', 'Bahasa Indonesia', 'Bahasa Inggris', 'PAI', 'PJOK'],
-  kelas: ['I (Satu)', 'II (Dua)', 'III (Tiga)', 'IV (Empat)', 'V (Lima)', 'VI (Enam)'],
-  tahunAjaran: ['2023/2024', '2024/2025', '2025/2026', '2026/2027'],
-  waktu: ['60 Menit', '90 Menit', '120 Menit'],
+  judulUjian: [],
+  mataPelajaran: [],
+  kelas: [],
+  tahunAjaran: [],
+  waktu: [],
 };
 
 export const useAdminStore = create<AdminState>()(
