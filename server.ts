@@ -6,6 +6,7 @@ import { put } from '@vercel/blob';
 import { db } from '@vercel/postgres';
 import multer from 'multer';
 import dotenv from 'dotenv';
+import cors from 'cors';
 import { GoogleGenAI } from '@google/genai';
 
 dotenv.config();
@@ -18,11 +19,28 @@ async function startServer() {
   const PORT = 3000;
   const upload = multer({ storage: multer.memoryStorage() });
 
+  // Middleware
+  app.use(cors()); // Allow all origins in dev
   app.use(express.json());
+  app.use(express.urlencoded({ extended: true }));
 
-  // API: Health Check
+  // Global Logger
+  app.use((req, res, next) => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+    next();
+  });
+
+  // API Routes
   app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok' });
+    res.json({ status: 'ok', time: new Date().toISOString() });
+  });
+
+  // Explicit OPTIONS handle for all /api routes to prevent 405 from nginx/Vite
+  app.options('/api/*', (req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.sendStatus(200);
   });
 
   // API: Upload to Vercel Blob
