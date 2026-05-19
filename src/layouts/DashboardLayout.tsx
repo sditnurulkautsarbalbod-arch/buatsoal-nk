@@ -1,6 +1,7 @@
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useDraftStore } from '@/store/useDraftStore';
+import { useSettingsStore } from '@/store/useSettingsStore';
 import { useState, useEffect } from 'react';
 import { vercelService } from '@/services/vercelService';
 import {
@@ -13,14 +14,21 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
 export default function DashboardLayout() {
   const { isAuthenticated, logout, user } = useAuthStore();
+  const { theme, setTheme } = useSettingsStore();
   const location = useLocation();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const toggleTheme = () => {
+    setTheme(theme === 'light' ? 'dark' : 'light');
+  };
 
   useEffect(() => {
     // Initialize Vercel Schema when dashboard loads
@@ -52,23 +60,23 @@ export default function DashboardLayout() {
   const filteredNavItems = navItems.filter(item => !item.adminOnly || user?.role === 'admin');
 
   return (
-    <div className="min-h-screen bg-[#F1F5F9] flex overflow-hidden">
+    <div className={`min-h-screen bg-[#F1F5F9] dark:bg-slate-950 flex overflow-hidden ${theme === 'dark' ? 'dark' : ''}`}>
       {/* Desktop Sidebar */}
       <aside 
-        className={`hidden md:flex flex-col border-r border-slate-200 bg-white transition-all duration-300 ease-in-out relative ${
+        className={`hidden md:flex flex-col border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 transition-all duration-300 ease-in-out relative ${
           isSidebarCollapsed ? 'w-20' : 'w-64'
         }`}
       >
-        <div className={`h-16 flex items-center border-b border-slate-200 gap-3 px-6 ${isSidebarCollapsed ? 'justify-center px-0' : ''}`}>
-          <div className="w-8 h-8 shrink-0 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold shadow-md shadow-indigo-200">E</div>
+        <div className={`h-16 flex items-center border-b border-slate-200 dark:border-slate-800 gap-3 px-6 ${isSidebarCollapsed ? 'justify-center px-0' : ''}`}>
+          <div className="w-8 h-8 shrink-0 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold shadow-md shadow-indigo-200 dark:shadow-indigo-900/30">E</div>
           {!isSidebarCollapsed && (
-            <span className="text-xl font-bold text-slate-800 tracking-tight leading-none truncate">EduScript Pro</span>
+            <span className="text-xl font-bold text-slate-800 dark:text-white tracking-tight leading-none truncate">EduScript Pro</span>
           )}
         </div>
 
         <button 
           onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-          className="absolute -right-3 top-20 w-6 h-6 bg-white border border-slate-200 rounded-full flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:border-indigo-200 shadow-sm z-10 transition-colors"
+          className="absolute -right-3 top-20 w-6 h-6 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:border-indigo-200 shadow-sm z-10 transition-colors"
         >
           {isSidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
         </button>
@@ -83,8 +91,8 @@ export default function DashboardLayout() {
                 title={isSidebarCollapsed ? item.name : ''}
                 className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 group ${
                   isActive
-                    ? 'bg-indigo-50 text-indigo-700 font-medium'
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-indigo-600'
+                    ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 font-medium'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-indigo-600 dark:hover:text-indigo-400'
                 } ${isSidebarCollapsed ? 'justify-center px-0 mx-auto w-12 h-12' : ''}`}
               >
                 <item.icon className={`w-5 h-5 shrink-0 transition-transform duration-200 ${isActive ? '' : 'group-hover:scale-110'}`} />
@@ -94,21 +102,21 @@ export default function DashboardLayout() {
           })}
         </div>
 
-        <div className={`p-4 border-t border-slate-200 ${isSidebarCollapsed ? 'flex flex-col items-center' : ''}`}>
+        <div className={`p-4 border-t border-slate-200 dark:border-slate-800 ${isSidebarCollapsed ? 'flex flex-col items-center' : ''}`}>
           {!isSidebarCollapsed ? (
             <>
               <div className="flex items-center gap-3 mb-4 px-2">
-                <div className="w-10 h-10 shrink-0 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 font-bold uppercase transition-transform hover:scale-105">
+                <div className="w-10 h-10 shrink-0 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 font-bold uppercase transition-transform hover:scale-105">
                   {user?.nama?.charAt(0) || 'U'}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-900 truncate">{user?.nama}</p>
-                  <p className="text-xs text-slate-500 truncate capitalize">{user?.role}</p>
+                  <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{user?.nama}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 truncate capitalize">{user?.role}</p>
                 </div>
               </div>
               <button
                 onClick={logout}
-                className="flex items-center gap-3 px-3 py-2.5 text-sm text-red-600 font-medium hover:bg-red-50 rounded-xl w-full transition-colors group"
+                className="flex items-center gap-3 px-3 py-2.5 text-sm text-red-600 font-medium hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl w-full transition-colors group"
               >
                 <LogOut className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
                 Keluar
@@ -118,7 +126,7 @@ export default function DashboardLayout() {
             <button
               onClick={logout}
               title="Keluar"
-              className="w-12 h-12 flex items-center justify-center text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+              className="w-12 h-12 flex items-center justify-center text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors"
             >
               <LogOut className="w-5 h-5" />
             </button>
@@ -136,16 +144,16 @@ export default function DashboardLayout() {
 
       {/* Mobile Sidebar */}
       <aside 
-        className={`fixed inset-y-0 left-0 w-72 bg-white z-50 transform transition-transform duration-300 ease-in-out md:hidden ${
+        className={`fixed inset-y-0 left-0 w-72 bg-white dark:bg-slate-900 z-50 transform transition-transform duration-300 ease-in-out md:hidden ${
           isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="h-16 flex items-center justify-between px-6 border-b border-slate-200">
+        <div className="h-16 flex items-center justify-between px-6 border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">E</div>
-            <span className="text-xl font-bold text-slate-800 tracking-tight">EduScript Pro</span>
+            <span className="text-xl font-bold text-slate-800 dark:text-white tracking-tight">EduScript Pro</span>
           </div>
-          <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 text-slate-400 hover:text-slate-600">
+          <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
             <X className="w-6 h-6" />
           </button>
         </div>
@@ -159,8 +167,8 @@ export default function DashboardLayout() {
                 onClick={() => setIsMobileMenuOpen(false)}
                 className={`flex items-center gap-3 px-4 py-4 rounded-xl transition-colors ${
                   isActive
-                    ? 'bg-indigo-50 text-indigo-700 font-medium'
-                    : 'text-slate-600 hover:bg-slate-50'
+                    ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 font-medium'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
                 }`}
               >
                 <item.icon className="w-5 h-5" />
@@ -169,10 +177,10 @@ export default function DashboardLayout() {
             );
           })}
         </div>
-        <div className="p-6 border-t border-slate-200">
+        <div className="p-6 border-t border-slate-200 dark:border-slate-800">
           <button
             onClick={logout}
-            className="flex items-center gap-3 px-4 py-3 text-red-600 font-medium hover:bg-red-50 rounded-xl w-full transition-colors"
+            className="flex items-center gap-3 px-4 py-3 text-red-600 font-medium hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl w-full transition-colors"
           >
             <LogOut className="w-5 h-5" />
             Keluar
@@ -183,7 +191,7 @@ export default function DashboardLayout() {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         {/* Top Header for Mobile & Desktop toggle */}
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-6 sticky top-0 z-30 shrink-0">
+        <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 md:px-6 sticky top-0 z-30 shrink-0">
           <div className="flex items-center gap-4">
             <button 
               onClick={() => setIsMobileMenuOpen(true)}
@@ -193,26 +201,33 @@ export default function DashboardLayout() {
             </button>
             <div className="md:hidden flex items-center gap-2">
               <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold shadow-sm">E</div>
-              <span className="text-lg font-bold text-slate-800 tracking-tight">EduScript Pro</span>
+              <span className="text-lg font-bold text-slate-800 dark:text-white tracking-tight">EduScript Pro</span>
             </div>
             
-            {/* Context breadcrumb or page title could go here */}
             <div className="hidden md:block">
-               <h1 className="text-sm font-medium text-slate-500 capitalize">
+               <h1 className="text-sm font-medium text-slate-500 dark:text-slate-400 capitalize">
                  {location.pathname === '/' ? 'Dashboard' : location.pathname.substring(1).replace('-', ' ')}
                </h1>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-             <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-full border border-slate-100">
+             <button 
+                onClick={toggleTheme}
+                className="p-2 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                title={theme === 'light' ? 'Mode Malam' : 'Mode Siang'}
+             >
+                {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+             </button>
+
+             <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-slate-50 dark:bg-slate-800 rounded-full border border-slate-100 dark:border-slate-700">
                 <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Server Online</span>
+                <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Server Online</span>
              </div>
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto bg-[#F8FAFC]">
+        <main className="flex-1 overflow-y-auto bg-[#F8FAFC] dark:bg-slate-950">
           <Outlet />
         </main>
       </div>

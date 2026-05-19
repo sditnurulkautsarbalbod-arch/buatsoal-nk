@@ -69,7 +69,7 @@ export const useEditorStore = create<EditorState>((set) => ({
     kelas: '',
     semester: '',
     tahunAjaran: '',
-    waktu: '60 Menit'
+    waktu: ''
   },
   questions: [],
   pdfSettings: {
