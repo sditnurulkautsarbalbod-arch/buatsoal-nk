@@ -11,14 +11,6 @@ export default function Dashboard() {
   const { drafts, deleteDraft } = useDraftStore();
   const isAdmin = user?.role === 'admin';
 
-  // One-time cleanup for the specific draft the user wants to remove
-  useEffect(() => {
-    const draftToRemove = drafts.find(d => d.title === 'Penilaian Akhir Semester Genap');
-    if (draftToRemove) {
-      deleteDraft(draftToRemove.id);
-    }
-  }, [drafts.length, deleteDraft]);
-
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -41,7 +33,7 @@ export default function Dashboard() {
         )}
       </div>
 
-      {isAdmin ? (
+      {isAdmin && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
             { label: 'Total Guru', value: '24', icon: Users, color: 'text-indigo-600', bg: 'bg-indigo-100' },
@@ -57,28 +49,6 @@ export default function Dashboard() {
                <span className="text-sm text-slate-500 font-medium">{stat.label}</span>
             </div>
           ))}
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-4">
-           {/* Guru Stats */}
-           <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4">
-              <div className="w-14 h-14 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                <FileText className="w-8 h-8" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-slate-500">Soal Dibuat</p>
-                <p className="text-3xl font-bold text-slate-900">42</p>
-              </div>
-           </div>
-           <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4">
-              <div className="w-14 h-14 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
-                <Download className="w-8 h-8" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-slate-500">PDF Unduhan</p>
-                <p className="text-3xl font-bold text-slate-900">18</p>
-              </div>
-           </div>
         </div>
       )}
 

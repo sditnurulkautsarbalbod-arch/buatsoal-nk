@@ -4,7 +4,7 @@ import { useDraftStore } from '@/store/useDraftStore';
 import { useAdminStore } from '@/store/useAdminStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Sparkles, Check, MoreVertical, ChevronLeft, Image as ImageIcon, ChevronDown, Plus, Minus, Maximize2, Trash2, ListTodo, AlignLeft, FileText, FileCheck2, Table, Upload, Trello, Menu, Activity, Bell, Search, Download, X, Settings, Printer, Save, Loader2 } from 'lucide-react';
+import { Sparkles, Check, MoreVertical, ChevronLeft, Image as ImageIcon, ChevronDown, Plus, Minus, Maximize2, Minimize2, Trash2, ListTodo, AlignLeft, FileText, FileCheck2, Table, Upload, Trello, Menu, Activity, Bell, Search, Download, X, Settings, Printer, Save, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/Button';
 import { AIGeneratorModal } from '@/components/AIGeneratorModal';
@@ -35,6 +35,7 @@ export default function EditorPage() {
   const [zoom, setZoom] = useState(100);
   const [isAIModalOpen, setIsAIModalOpen] = useState(false);
   const [isPdfSettingsOpen, setIsPdfSettingsOpen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [imageModalConfig, setImageModalConfig] = useState<{ isOpen: boolean, tempUrl: string, questionId: string, widthCm: number, heightCm: number } | null>(null);
@@ -192,7 +193,7 @@ export default function EditorPage() {
       <div className="flex-1 flex flex-col xl:flex-row overflow-hidden">
         
         {/* Left Pane - Editor Form */}
-        <div className="w-full xl:w-[45%] flex flex-col bg-slate-50 border-r border-slate-200 overflow-y-auto print:hidden">
+        <div className={`w-full xl:w-[45%] flex flex-col bg-slate-50 border-r border-slate-200 overflow-y-auto print:hidden transition-all duration-300 ${isFullscreen ? 'xl:w-0 overflow-hidden opacity-0 invisible' : 'xl:w-[45%] visible opacity-100'}`}>
           <div className="p-4 md:p-6 space-y-6">
 
             
@@ -491,7 +492,9 @@ export default function EditorPage() {
               <span className="text-xs font-bold text-slate-700 w-12 text-center select-none">{zoom}%</span>
               <button className="p-1.5 hover:bg-slate-100 text-slate-600 rounded transition-colors" onClick={() => setZoom(Math.min(200, zoom + 10))}><Plus className="w-4 h-4" /></button>
               <div className="w-px h-5 bg-slate-300 mx-2"></div>
-              <button className="p-1.5 hover:bg-slate-100 text-slate-600 rounded transition-colors"><Maximize2 className="w-4 h-4" /></button>
+              <button className={`p-1.5 hover:bg-slate-100 rounded transition-colors ${isFullscreen ? 'text-blue-600 bg-blue-50' : 'text-slate-600'}`} onClick={() => setIsFullscreen(!isFullscreen)} title={isFullscreen ? "Keluar Layar Penuh" : "Mode Layar Penuh"}>
+                {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+              </button>
               <div className="w-px h-5 bg-slate-300 mx-2"></div>
               <button className="p-1.5 hover:bg-slate-100 text-slate-600 rounded transition-colors tooltip" title="Pengaturan PDF" onClick={() => setIsPdfSettingsOpen(true)}><Settings className="w-4 h-4" /></button>
               <button className="p-1.5 hover:bg-slate-100 text-slate-600 rounded transition-colors tooltip" title="Download PDF" onClick={handlePrint}><Download className="w-4 h-4" /></button>
