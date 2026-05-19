@@ -45,7 +45,130 @@ export default function EditorPage() {
 
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const docContainerRef = useRef<HTMLDivElement>(null);
+
+  const questionTypes = ['pg', 'isian', 'uraian'] as const;
+  type QuestionType = typeof questionTypes[number];
+
+  const typeLabels: Record<QuestionType, string> = {
+    pg: 'I. PILIHAN GANDA',
+    isian: 'II. ISIAN',
+    uraian: 'III. URAIAN',
+  };
+
+  const typeInstructions: Record<QuestionType, string> = {
+    pg: 'Pilihlah jawaban yang paling tepat!',
+    isian: 'Isilah titik-titik di bawah ini dengan jawaban yang tepat!',
+    uraian: 'Jawablah pertanyaan-pertanyaan di bawah ini dengan jelas dan benar!',
+  };
+
+  const estimateQuestionLines = (q: any) => {
+    const textLines = Math.max(2, Math.ceil((q.text || '').length / 85));
+    const imageLines = q.imageUrl ? 10 : 0;
+    const optionLines = q.type === 'pg'
+      ? Math.max(2, Math.ceil((q.options?.reduce((n: number, o: any) => n + (o.text || '').length, 0) || 0) / 60))
+      : 0;
+    const answerLines = q.type === 'uraian' ? 8 : q.type === 'isian' ? 4 : 0;
+    return textLines + imageLines + optionLines + answerLines + 3;
+  };
+
+  const groupsByType = questionTypes.map((type) => ({
+    type,
+    items: questions.filter((q) => q.type === type),
+  }));
+
+  type PageSection = {
+    type: QuestionType;
+    showHeader: boolean;
+    items: Array<any>;
+  };
+
+  type PreviewPage = {
+    sections: PageSection[];
+  };
+
+  const firstPageLineBudget = 14;
+  const nextPageLineBudget = 36;
+  const previewPages: PreviewPage[] = [];
+  let currentPageDraft: PreviewPage = { sections: [] };
+  let remainingLines = firstPageLineBudget;
+
+  const commitCurrentPage = () => {
+    if (currentPageDraft.sections.length > 0) {
+      previewPages.push(currentPageDraft);
+      currentPageDraft = { sections: [] };
+      remainingLines = nextPageLineBudget;
+    }
+  };
+
+  for (const group of groupsByType) {
+    if (group.items.length === 0) continue;
+
+    let itemCursor = 0;
+    let needHeader = true;
+
+    while (itemCursor < group.items.length) {
+      const headerCost = needHeader ? 4 : 0;
+      const currentItem = group.items[itemCursor];
+      const itemCost = estimateQuestionLines(currentItem);
+
+      if (remainingLines < headerCost + 6) {
+        commitCurrentPage();
+        continue;
+      }
+
+      if (remainingLines < headerCost + itemCost) {
+        if (currentPageDraft.sections.length === 0) {
+          currentPageDraft.sections.push({
+            type: group.type,
+            showHeader: needHeader,
+            items: [currentItem],
+          });
+          remainingLines = Math.max(0, remainingLines - headerCost - itemCost);
+          itemCursor += 1;
+          needHeader = false;
+          commitCurrentPage();
+          continue;
+        }
+
+        commitCurrentPage();
+        continue;
+      }
+
+      let section = currentPageDraft.sections.find((s) => s.type === group.type);
+      if (!section) {
+        section = { type: group.type, showHeader: needHeader, items: [] };
+        currentPageDraft.sections.push(section);
+        remainingLines -= headerCost;
+        needHeader = false;
+      }
+
+      section.items.push(currentItem);
+      remainingLines -= itemCost;
+      itemCursor += 1;
+    }
+  }
+
+  commitCurrentPage();
+
+  const pageData = previewPages.length > 0
+    ? previewPages
+    : [{ sections: [] }];
+
+  const activePage = pageData[Math.max(0, currentPage - 1)] || pageData[0];
+  const computedPages = pageData.length;
+
+  const questionOrderByType: Record<QuestionType, Record<string, number>> = {
+    pg: {},
+    isian: {},
+    uraian: {},
+  };
+
+  for (const type of questionTypes) {
+    const typed = questions.filter((q) => q.type === type);
+    typed.forEach((q, i) => {
+      questionOrderByType[type][q.id] = i + 1;
+    });
+  }
 
   const isLandscape = pdfSettings.orientation === 'Landscape';
   const paperWidthObj = { 'A4': 210, 'F4': 210 };
@@ -55,31 +178,9 @@ export default function EditorPage() {
   const docWidth = isLandscape ? hBase : wBase;
   const docHeight = isLandscape ? wBase : hBase;
 
-  // Calculate pages based on total height
   useEffect(() => {
-    const updatePagination = () => {
-      if (!docContainerRef.current) return;
-
-      const marginTopCm = parseFloat(pdfSettings.marginTop) || 1.5;
-      const marginBottomCm = parseFloat(pdfSettings.marginBottom) || 1.5;
-      const marginTopPx = (marginTopCm / 2.54) * 96;
-      const marginBottomPx = (marginBottomCm / 2.54) * 96;
-
-      const pageHeightPx = (docHeight / 25.4) * 96;
-      const usablePageHeightPx = Math.max(1, pageHeightPx - marginTopPx - marginBottomPx);
-
-      const measuredHeightPx = docContainerRef.current.scrollHeight;
-      const effectiveHeightPx = Math.max(0, measuredHeightPx - marginTopPx - marginBottomPx);
-      const count = Math.ceil(effectiveHeightPx / usablePageHeightPx);
-
-      setTotalPages(Math.max(1, count));
-    };
-
-    const observer = new ResizeObserver(updatePagination);
-    if (docContainerRef.current) observer.observe(docContainerRef.current);
-    updatePagination();
-    return () => observer.disconnect();
-  }, [docHeight, questions, header, pdfSettings, zoom]);
+    setTotalPages(computedPages);
+  }, [computedPages]);
 
   const goToPage = (page: number) => {
     const clampedPage = Math.max(1, Math.min(totalPages, page));
@@ -227,9 +328,6 @@ export default function EditorPage() {
             .question-item {
               break-inside: auto;
               page-break-inside: auto;
-            }
-            .preview-doc-content {
-              transform: none !important;
             }
           }
           .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -533,7 +631,7 @@ export default function EditorPage() {
         </div>
 
         {/* Right Pane - Preview & Settings */}
-        <div className={`flex-1 flex flex-col bg-[#eef1f6] dark:bg-slate-950 relative print:bg-white overflow-hidden transition-all duration-300 ${isFullscreen ? 'fixed inset-0 z-[100] w-full h-full bg-slate-900 overflow-y-auto' : ''}`}>
+        <div className={`flex-1 flex flex-col bg-[#eef1f6] dark:bg-slate-950 relative print:bg-white overflow-hidden transition-all duration-300 ${isFullscreen ? 'fixed inset-0 z-[100] w-full h-full bg-slate-900 overflow-hidden' : ''}`}>
           
           {/* Tambah Komponen Soal */}
           {(!isFullscreen || true) && ( 
@@ -643,28 +741,18 @@ export default function EditorPage() {
                </div>
              )}
 
-             {/* Document Container - page-clipped preview */}
+             {/* Document Container - fixed single page */}
              <div
-                className={`bg-transparent relative mx-auto ${isFullscreen ? 'scale-100' : ''}`}
+                className={`bg-white shadow-xl relative print:shadow-none print:m-0 print:block mx-auto ${isFullscreen ? 'scale-100' : ''}`}
                 style={{
                   width: `${docWidth}mm`,
-                  height: `${docHeight}mm`,
-                  overflow: 'hidden',
-                  position: 'relative'
+                  minHeight: `${docHeight}mm`,
+                  transform: `scale(${zoom / 100})`,
+                  transformOrigin: 'top center',
+                  position: 'relative',
+                  overflow: 'hidden'
                 }}
              >
-               <div
-                  ref={docContainerRef}
-                  className="preview-doc-content bg-white shadow-xl relative transition-transform origin-top print:shadow-none print:m-0 print:block"
-                  style={{
-                    width: `${docWidth}mm`,
-                    minHeight: `${docHeight}mm`,
-                    transform: `translateY(-${(currentPage - 1) * docHeight}mm) scale(${zoom / 100})`,
-                    marginBottom: `${(zoom / 100 - 1) * docHeight}mm`,
-                    transformOrigin: 'top left',
-                    position: 'relative'
-                  }}
-               >
                 {/* Visual Margins (Dotted lines simulation) */}
                 <div className="absolute inset-x-0 border-t border-dashed border-slate-300 pointer-events-none print:hidden flex justify-start pl-8" style={{ top: `${parseFloat(pdfSettings.marginTop) || 1.5}cm` }}>
                    <span className="bg-slate-50 text-[10px] px-1.5 py-0.5 -translate-y-1/2 text-slate-500 absolute font-medium rounded border border-slate-200">{parseFloat(pdfSettings.marginTop) || 1.5} cm</span>
@@ -678,17 +766,6 @@ export default function EditorPage() {
                 <div className="absolute inset-y-0 border-r border-dashed border-slate-300 pointer-events-none print:hidden flex items-center justify-end" style={{ right: `${parseFloat(pdfSettings.marginRight) || 1.5}cm` }}>
                    <span className="bg-slate-50 text-[10px] px-1.5 py-0.5 translate-x-1/2 text-slate-500 font-medium rounded border border-slate-200 absolute rotate-90 whitespace-nowrap">{parseFloat(pdfSettings.marginRight) || 1.5} cm</span>
                 </div>
-
-                {/* Page Markers */}
-                {Array.from({ length: 20 }).map((_, i) => (
-                   <div 
-                     key={i} 
-                     className="absolute inset-x-0 border-t-2 border-dashed border-slate-200 print:hidden z-[5] pointer-events-none" 
-                     style={{ top: `${(i + 1) * docHeight}mm` }}
-                   >
-                     <div className="absolute left-[-80px] top-[-10px] bg-slate-800 text-white text-[10px] px-2 py-1 rounded font-bold shadow-lg">HALAMAN {i + 2}</div>
-                   </div>
-                ))}
 
                 {/* Actual Printed Content Area */}
                 <div
@@ -705,6 +782,7 @@ export default function EditorPage() {
                    }}
                 >
                        {/* Header Render */}
+                       {currentPage === 1 && (
                        <div className="doc-header">
                          <div className="flex gap-4 border-b-2 border-black pb-4 mb-5 border-double border-b-[3px]">
                             <div className="w-20 lg:w-24 shrink-0 flex items-center justify-center">
@@ -739,29 +817,27 @@ export default function EditorPage() {
                             </div>
                          </div>
                        </div>
+                       )}
     
                        {/* Questions Block */}
                        <div className="space-y-6 flex-1 leading-[1.15]">
-                         {(['pg', 'isian', 'uraian'] as const).map(type => {
-                           const group = questions.filter(q => q.type === type);
+                         {activePage.sections.map(({ type, items: group, showHeader }) => {
                            if (group.length === 0) return null;
-                           
-                           const typeLabels: Record<string, string> = {
-                             'pg': 'I. PILIHAN GANDA',
-                             'isian': 'II. ISIAN',
-                             'uraian': 'III. URAIAN',
-                           };
-                           const typeInstructions: Record<string, string> = {
-                             'pg': 'Pilihlah jawaban yang paling tepat!',
-                             'isian': 'Isilah titik-titik di bawah ini dengan jawaban yang tepat!',
-                             'uraian': 'Jawablah pertanyaan-pertanyaan di bawah ini dengan jelas dan benar!',
-                           };
+
                            return (
-                             <div key={type} className="mb-0 section-block">
-                               <h4 className="font-bold mb-4 uppercase tracking-wider section-heading">{typeLabels[type]}</h4>
-                               <p className="font-bold mb-4 text-[11pt] section-heading">{typeInstructions[type]}</p>
-                               <ol className="list-decimal pl-6 space-y-5" start={1} style={{ boxSizing: 'border-box' }}>
-                                 {group.map((q, idx) => (
+                             <div key={`${type}-${group[0]?.id || 'empty'}`} className="mb-0 section-block">
+                               {showHeader && (
+                                 <>
+                                   <h4 className="font-bold mb-4 uppercase tracking-wider section-heading">{typeLabels[type]}</h4>
+                                   <p className="font-bold mb-4 text-[11pt] section-heading">{typeInstructions[type]}</p>
+                                 </>
+                               )}
+                               <ol
+                                 className="list-decimal pl-6 space-y-5"
+                                 start={questionOrderByType[type][group[0]?.id] || 1}
+                                 style={{ boxSizing: 'border-box' }}
+                               >
+                                 {group.map((q) => (
                                    <li key={q.id} data-q-id={q.id} className="pl-2 break-inside-auto question-item">
                                      <p className="mb-2.5 whitespace-pre-wrap text-justify text-[11pt] leading-[1.35] block" style={{ hyphens: 'auto', overflowWrap: 'anywhere', wordBreak: 'normal', width: '100%', maxWidth: '100%' }}>
                                        {q.text || `Soal ${questions.indexOf(q) + 1} (${q.type})`}
@@ -769,15 +845,15 @@ export default function EditorPage() {
                                      {q.imageUrl && <div className="mb-3 mt-3 question-image"><img src={q.imageUrl} alt="Lampiran" style={{ width: q.imageWidth ? `${q.imageWidth}cm` : 'auto', height: q.imageHeight ? `${q.imageHeight}cm` : 'auto' }} className="max-w-full object-contain border border-slate-200 p-1 rounded-sm" /></div>}
                                      {(q.type === 'pg') && q.options && (
                                        <div className={`grid gap-2 text-[11pt] question-options ${
-                                         Math.max(...(q.options.map(o => o.text.length) || [0])) < 20
+                                         Math.max(...(q.options.map((o: any) => o.text.length) || [0])) < 20
                                            ? 'grid-cols-4'
-                                           : Math.max(...(q.options.map(o => o.text.length) || [0])) < 45
+                                           : Math.max(...(q.options.map((o: any) => o.text.length) || [0])) < 45
                                              ? 'grid-cols-2'
                                              : 'grid-cols-1'
                                        }`}>
-                                          {q.options.map(opt => (
+                                          {q.options.map((opt: any) => (
                                             <div key={opt.id} className="flex gap-1">
-                                              <span className="font-semibold w-5 shrink-0 text-left">{opt.id}.</span> 
+                                              <span className="font-semibold w-5 shrink-0 text-left">{opt.id}.</span>
                                               <span className="flex-1" style={{ wordBreak: 'break-word' }}>{opt.text}</span>
                                             </div>
                                           ))}
