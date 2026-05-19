@@ -2,6 +2,34 @@ import { put } from '@vercel/blob';
 
 const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
 
+async function readRawBody(req: any): Promise<string> {
+  return await new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    req.on('data', (chunk: Buffer) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
+    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+    req.on('error', reject);
+  });
+}
+
+async function getPayload(req: any): Promise<any> {
+  if (req.body && typeof req.body === 'object') return req.body;
+  if (typeof req.body === 'string' && req.body.trim()) {
+    try {
+      return JSON.parse(req.body);
+    } catch {
+      return {};
+    }
+  }
+
+  const raw = await readRawBody(req);
+  if (!raw.trim()) return {};
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return {};
+  }
+}
+
 export default async function handler(req: any, res: any) {
   try {
     if (req.method !== 'POST') {
@@ -13,7 +41,8 @@ export default async function handler(req: any, res: any) {
       return res.status(500).json({ error: 'BLOB_READ_WRITE_TOKEN tidak ditemukan di environment Vercel.' });
     }
 
-    const { filename, content, contentType } = req.body || {};
+    const payload = await getPayload(req);
+    const { filename, content, contentType } = payload || {};
 
     if (!filename || !content) {
       return res.status(400).json({ error: 'filename dan content wajib diisi.' });
