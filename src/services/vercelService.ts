@@ -19,7 +19,8 @@ export const vercelService = {
         reader.readAsDataURL(file);
       });
 
-      const response = await axios.post('/api/upload', {
+      const uploadUrl = new URL('/api/upload', window.location.origin).toString();
+      const response = await axios.post(uploadUrl, {
         filename,
         content: base64,
         contentType,
