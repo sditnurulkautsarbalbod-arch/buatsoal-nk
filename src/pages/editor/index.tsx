@@ -8,7 +8,7 @@ import { Sparkles, Check, MoreVertical, ChevronLeft, Image as ImageIcon, Chevron
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/Button';
 import { AIGeneratorModal } from '@/components/AIGeneratorModal';
-import { cloudflareService } from '@/services/cloudflareService';
+import { vercelService } from '@/services/vercelService';
 
 export default function EditorPage() {
   const { header, setHeaderField, questions, addQuestion, updateQuestion, updateOption, deleteQuestion, pdfSettings, setPdfSetting } = useEditorStore();
@@ -82,24 +82,24 @@ export default function EditorPage() {
       // Local Sync
       saveDraft(draftData);
       
-      // Cloudflare D1 Sync
-      await cloudflareService.queryD1(`
+      // Vercel Postgres Sync
+      await vercelService.query(`
         INSERT INTO drafts (id, title, content, updatedAt, editorState)
-        VALUES (?, ?, ?, ?, ?)
+        VALUES ($1, $2, $3, $4, $5)
         ON CONFLICT(id) DO UPDATE SET
-          title = excluded.title,
-          content = excluded.content,
-          updatedAt = excluded.updatedAt,
-          editorState = excluded.editorState
+          title = EXCLUDED.title,
+          content = EXCLUDED.content,
+          updatedAt = EXCLUDED.updatedAt,
+          editorState = EXCLUDED.editorState
       `, [id, draftData.title, draftData.content, draftData.updatedAt, JSON.stringify(draftData.editorState)]);
 
       if (!draftId) {
         setSearchParams({ id });
       }
-      toast.success('Draft berhasil disimpan ke Cloudflare!');
+      toast.success('Draft berhasil disimpan ke Vercel!');
     } catch (err) {
-      console.error('Save to Cloudflare failed:', err);
-      toast.error('Gagal menyimpan ke Cloudflare. Data tersimpan di lokal.');
+      console.error('Save to Vercel failed:', err);
+      toast.error('Gagal menyimpan ke Vercel. Data tersimpan di lokal.');
     } finally {
       setIsSaving(false);
     }
@@ -109,9 +109,9 @@ export default function EditorPage() {
     const file = e.target.files?.[0];
     if (file) {
       setIsUploading(true);
-      const toastId = toast.loading('Mengunggah logo ke R2...');
+      const toastId = toast.loading('Mengunggah logo ke Vercel Blob...');
       try {
-        const url = await cloudflareService.uploadToR2(file);
+        const url = await vercelService.uploadToBlob(file);
         setHeaderField(position, url);
         toast.success('Logo berhasil diunggah!', { id: toastId });
       } catch (err) {
@@ -377,9 +377,9 @@ export default function EditorPage() {
                                  const file = e.target.files?.[0];
                                  if (file) {
                                    setIsUploading(true);
-                                   const toastId = toast.loading('Mengunggah gambar ke R2...');
+                                   const toastId = toast.loading('Mengunggah gambar ke Vercel Blob...');
                                    try {
-                                      const url = await cloudflareService.uploadToR2(file);
+                                      const url = await vercelService.uploadToBlob(file);
                                       setImageModalConfig({ isOpen: true, tempUrl: url, questionId: q.id, widthCm: 10, heightCm: 10 });
                                       toast.success('Gambar berhasil diunggah!', { id: toastId });
                                    } catch (err) {

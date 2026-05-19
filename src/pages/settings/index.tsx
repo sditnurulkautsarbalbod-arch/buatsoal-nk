@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { User, Shield, Bell, Save, Sparkles, Key, Check, Users as UsersIcon, Database } from 'lucide-react';
 import UserManagement from './Users';
-import { cloudflareService } from '@/services/cloudflareService';
+import { vercelService } from '@/services/vercelService';
 
 export default function SettingsPage() {
   const { user } = useAuthStore();
@@ -25,8 +25,8 @@ export default function SettingsPage() {
   const handleInitDatabase = async () => {
     setIsDbInitializing(true);
     try {
-      await cloudflareService.initSchema();
-      alert('Database D1 berhasil diinisialisasi dan Admin Utama telah dibuat.');
+      await vercelService.initSchema();
+      alert('Database Vercel Postgres berhasil diinisialisasi.');
     } catch (err: any) {
       alert('Gagal inisialisasi: ' + err.message);
     } finally {
@@ -43,7 +43,7 @@ export default function SettingsPage() {
         </div>
         {user?.role === 'admin' && (
           <Button variant="outline" size="sm" onClick={handleInitDatabase} isLoading={isDbInitializing}>
-            <Database className="w-4 h-4 mr-2" /> Init D1
+            <Database className="w-4 h-4 mr-2" /> Init Postgres
           </Button>
         )}
       </div>

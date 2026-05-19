@@ -2,7 +2,7 @@ import { Navigate, Outlet } from 'react-router-dom';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useDraftStore } from '@/store/useDraftStore';
 import { useState, useEffect } from 'react';
-import { cloudflareService } from '@/services/cloudflareService';
+import { vercelService } from '@/services/vercelService';
 import {
   FileText,
   Home,
@@ -23,15 +23,15 @@ export default function DashboardLayout() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
-    // Initialize D1 Schema when dashboard loads
+    // Initialize Vercel Schema when dashboard loads
     const initDB = async () => {
       try {
-        await cloudflareService.initSchema();
-        console.log('D1 Schema initialized successfully');
+        await vercelService.initSchema();
+        console.log('Vercel Postgres Schema initialized successfully');
         // Now fetch drafts
-        await useDraftStore.getState().fetchDraftsFromCloudflare();
+        await useDraftStore.getState().fetchDraftsFromVercel();
       } catch (err) {
-        console.error('Failed to initialize D1 Schema or fetch drafts:', err);
+        console.error('Failed to initialize Vercel Schema or fetch drafts:', err);
       }
     };
     initDB();

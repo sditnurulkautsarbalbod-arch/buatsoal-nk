@@ -22,6 +22,8 @@
     "@tiptap/react": "^3.23.2",
     "@tiptap/starter-kit": "^3.23.2",
     "@types/multer": "^2.1.0",
+    "@vercel/blob": "^2.3.3",
+    "@vercel/postgres": "^0.10.0",
     "@vitejs/plugin-react": "^5.0.4",
     "axios": "^1.16.0",
     "clsx": "^2.1.1",

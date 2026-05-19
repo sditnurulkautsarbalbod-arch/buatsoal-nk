@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { cloudflareService } from '@/services/cloudflareService';
+import { vercelService } from '@/services/vercelService';
 
 export interface HeaderState {
   show: boolean;
@@ -24,7 +24,7 @@ interface DraftState {
   drafts: Draft[];
   saveDraft: (draft: Draft) => void;
   deleteDraft: (id: string) => void;
-  fetchDraftsFromCloudflare: () => Promise<void>;
+  fetchDraftsFromVercel: () => Promise<void>;
 }
 
 export const useDraftStore = create<DraftState>()(
@@ -43,9 +43,9 @@ export const useDraftStore = create<DraftState>()(
       deleteDraft: (id) => set((state) => ({
         drafts: state.drafts.filter(d => d.id !== id)
       })),
-      fetchDraftsFromCloudflare: async () => {
+      fetchDraftsFromVercel: async () => {
         try {
-          const results = await cloudflareService.queryD1<any>('SELECT * FROM drafts ORDER BY updatedAt DESC');
+          const results = await vercelService.query<any>('SELECT * FROM drafts ORDER BY updatedAt DESC');
           const drafts: Draft[] = results.map(row => ({
             id: row.id,
             title: row.title,
@@ -55,7 +55,7 @@ export const useDraftStore = create<DraftState>()(
           }));
           set({ drafts });
         } catch (err) {
-          console.error('Failed to fetch drafts from Cloudflare:', err);
+          console.error('Failed to fetch drafts from Vercel:', err);
         }
       }
     }),
