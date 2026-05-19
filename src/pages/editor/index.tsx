@@ -4,11 +4,12 @@ import { useDraftStore } from '@/store/useDraftStore';
 import { useAdminStore } from '@/store/useAdminStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Sparkles, Check, MoreVertical, ChevronLeft, Image as ImageIcon, ChevronDown, Plus, Minus, Maximize2, Minimize2, Trash2, ListTodo, AlignLeft, FileText, FileCheck2, Table, Upload, Trello, Menu, Activity, Bell, Search, Download, X, Settings, Printer, Save, Loader2 } from 'lucide-react';
+import { Sparkles, Check, MoreVertical, ChevronLeft, Image as ImageIcon, ChevronDown, Plus, Minus, Maximize2, Minimize2, Trash2, ListTodo, AlignLeft, FileText, FileCheck2, Table, Upload, Trello, Menu, Activity, Bell, Search, Download, X, Settings, Save, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/Button';
 import { AIGeneratorModal } from '@/components/AIGeneratorModal';
 import { vercelService } from '@/services/vercelService';
+import { downloadQuestionsAsDocx } from '@/services/docxExportService';
 
 export default function EditorPage() {
   const { header, setHeaderField, questions, addQuestion, updateQuestion, updateOption, deleteQuestion, pdfSettings, setPdfSetting } = useEditorStore();
@@ -299,13 +300,24 @@ export default function EditorPage() {
     }
   };
 
-  const handlePrint = () => {
-    toast.success('Mempersiapkan PDF...', {
-      description: 'Dialog cetak/download akan segera terbuka.'
-    });
-    setTimeout(() => {
-      window.print();
-    }, 500);
+  const handleDownloadDocx = async () => {
+    if (questions.length === 0) {
+      toast.error('Belum ada soal untuk diunduh.');
+      return;
+    }
+
+    const toastId = toast.loading('Menyiapkan file DOCX...');
+    try {
+      await downloadQuestionsAsDocx({
+        header,
+        questions,
+        pdfSettings,
+      });
+      toast.success('File DOCX berhasil diunduh.', { id: toastId });
+    } catch (err: any) {
+      console.error('DOCX export failed:', err);
+      toast.error(`Gagal mengunduh DOCX: ${err?.message || 'Unknown error'}`, { id: toastId });
+    }
   };
 
   return (
@@ -677,8 +689,8 @@ export default function EditorPage() {
               {!isFullscreen && (
                 <>
                   <div className="w-px h-5 bg-slate-300 dark:bg-slate-700 mx-2"></div>
-                  <button className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 rounded transition-colors tooltip" title="Pengaturan PDF" onClick={() => setIsPdfSettingsOpen(true)}><Settings className="w-4 h-4" /></button>
-                  <button className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 rounded transition-colors tooltip" title="Download PDF" onClick={handlePrint}><Download className="w-4 h-4" /></button>
+                  <button className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 rounded transition-colors tooltip" title="Pengaturan DOCX" onClick={() => setIsPdfSettingsOpen(true)}><Settings className="w-4 h-4" /></button>
+                  <button className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 rounded transition-colors tooltip" title="Unduh DOCX" onClick={handleDownloadDocx}><Download className="w-4 h-4" /></button>
                   <button
                     className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 rounded transition-colors tooltip disabled:opacity-50"
                     title="Simpan ke Bank Soal"
@@ -888,7 +900,7 @@ export default function EditorPage() {
              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm print:hidden">
                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[420px] overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
                   <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                     <h3 className="font-bold text-slate-800 text-[16px]">Pengaturan PDF</h3>
+                     <h3 className="font-bold text-slate-800 text-[16px]">Pengaturan DOCX</h3>
                      <button onClick={() => setIsPdfSettingsOpen(false)} className="p-1 hover:bg-slate-200 rounded-full text-slate-500 transition-colors">
                         <X className="w-5 h-5" />
                      </button>
