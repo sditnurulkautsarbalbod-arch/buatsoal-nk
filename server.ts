@@ -6,6 +6,7 @@ import { put } from '@vercel/blob';
 import { db } from '@vercel/postgres';
 import multer from 'multer';
 import dotenv from 'dotenv';
+import { GoogleGenAI } from '@google/genai';
 
 dotenv.config();
 
@@ -53,10 +54,11 @@ async function startServer() {
     try {
       const { sql, params } = req.body;
       
-      if (!process.env.POSTGRES_URL) {
-        return res.status(500).json({ 
+      const postgresUrl = process.env.POSTGRES_URL || process.env.DATABASE_URL;
+      if (!postgresUrl) {
+        return res.status(400).json({ 
           success: false, 
-          error: 'POSTGRES_URL tidak ditemukan. Harap hubungkan Vercel Postgres.' 
+          error: 'POSTGRES_URL tidak ditemukan. Jika Anda menjalankan ini di AI Studio, harap gunakan Cloudflare atau atur environment variable Vercel di Settings.' 
         });
       }
 
@@ -70,6 +72,39 @@ async function startServer() {
     } catch (err: any) {
       console.error('Vercel Postgres query error:', err);
       res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // API: Gemini Generate
+  app.post('/api/generate', async (req, res) => {
+    try {
+      const { prompt, apiKey: clientApiKey } = req.body;
+      const apiKey = clientApiKey || process.env.GEMINI_API_KEY;
+
+      if (!apiKey) {
+        return res.status(400).json({ error: 'GEMINI_API_KEY tidak ditemukan. Harap atur di Pengaturan atau sebagai environment variable.' });
+      }
+
+      const ai = new GoogleGenAI({ 
+        apiKey,
+        httpOptions: {
+          headers: {
+            'User-Agent': 'aistudio-build',
+          }
+        }
+      });
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: prompt
+      });
+
+      const text = response.text || '';
+      
+      res.json({ text });
+    } catch (err: any) {
+      console.error('Gemini generation error:', err);
+      res.status(500).json({ error: err.message });
     }
   });
 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { GoogleGenAI } from '@google/genai';
+import axios from 'axios';
 import { useEditorStore } from '@/store/useEditorStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { Sparkles, X, Loader2, Key, Settings } from 'lucide-react';
@@ -27,11 +27,6 @@ export function AIGeneratorModal({ isOpen, onClose }: AIGeneratorModalProps) {
   if (!isOpen) return null;
 
   const handleGenerate = async () => {
-    if (!geminiApiKey) {
-      setError('MISSING_API_KEY');
-      return;
-    }
-
     if (!topic.trim()) {
       setError('Masukkan topik materi!');
       return;
@@ -47,7 +42,6 @@ export function AIGeneratorModal({ isOpen, onClose }: AIGeneratorModalProps) {
     setError('');
     
     try {
-      const ai = new GoogleGenAI({ apiKey: geminiApiKey });
       const prompt = `Buatkan ${totalQuestions} soal ${header.mataPelajaran} tingkat ${header.kelas} tentang topik "${topic}". 
       Komposisi jenis soal:
       ${counts.pg > 0 ? `- ${counts.pg} soal Pilihan Ganda (type: "pg")\n` : ''}${counts.isian > 0 ? `- ${counts.isian} soal Isian (type: "isian")\n` : ''}${counts.uraian > 0 ? `- ${counts.uraian} soal Uraian (type: "uraian")\n` : ''}
@@ -71,13 +65,11 @@ export function AIGeneratorModal({ isOpen, onClose }: AIGeneratorModalProps) {
       
       Kembalikan HANYA array JSON yang valid tanpa backticks markdown atau teks tambahan. Pastikan jawabannya akurat dan relevan dengan kurikulum SD kelas ${header.kelas}.`;
 
-      // Generating content using the @google/genai SDK
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: prompt
+      const response = await axios.post('/api/generate', { 
+        prompt,
+        apiKey: geminiApiKey
       });
-
-      const text = response.text || '';
+      const text = response.data.text || '';
       const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
       const generatedQuestions = JSON.parse(cleanJson);
       
