@@ -6,6 +6,17 @@ import { Sparkles, X, Loader2, Key, Settings } from 'lucide-react';
 import { Button } from './ui/Button';
 import { useNavigate } from 'react-router-dom';
 
+function extractJsonArray(text: string) {
+  const cleaned = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+  const start = cleaned.indexOf('[');
+  const end = cleaned.lastIndexOf(']');
+  if (start === -1 || end === -1 || end <= start) {
+    throw new Error('AI tidak mengembalikan JSON array yang valid.');
+  }
+  const sliced = cleaned.slice(start, end + 1);
+  return JSON.parse(sliced);
+}
+
 interface AIGeneratorModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -65,16 +76,16 @@ export function AIGeneratorModal({ isOpen, onClose }: AIGeneratorModalProps) {
       
       Kembalikan HANYA array JSON yang valid tanpa backticks markdown atau teks tambahan. Pastikan jawabannya akurat dan relevan dengan kurikulum SD kelas ${header.kelas}.`;
 
-      const response = await axios.post('/api/generate', { 
+      const generateUrl = new URL('/api/generate', window.location.origin).toString();
+      const response = await axios.post(generateUrl, {
         prompt,
         apiKey: geminiApiKey
       });
       const text = response.data.text || '';
-      const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
-      const generatedQuestions = JSON.parse(cleanJson);
-      
+      const generatedQuestions = extractJsonArray(text);
+
       if (!Array.isArray(generatedQuestions)) {
-        throw new Error('Invalid format returned by AI');
+        throw new Error('Format jawaban AI tidak valid (bukan array).');
       }
 
       generatedQuestions.forEach(q => {
