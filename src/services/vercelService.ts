@@ -10,7 +10,11 @@ export const vercelService = {
       const contentType = (file as File).type || 'application/octet-stream';
       const base64 = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onload = () => {
+          const full = String(reader.result || '');
+          const pureBase64 = full.includes(',') ? full.split(',')[1] : full;
+          resolve(pureBase64);
+        };
         reader.onerror = () => reject(new Error('Gagal membaca file untuk upload.'));
         reader.readAsDataURL(file);
       });
