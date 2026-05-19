@@ -46,23 +46,37 @@ async function startServer() {
   // API: Upload to Vercel Blob
   app.post('/api/upload', upload.single('file'), async (req, res) => {
     try {
-      const file = req.file;
-      if (!file) return res.status(400).json({ error: 'No file uploaded' });
+      let filename: string;
+      let content: any;
+      let contentType: string | undefined;
+
+      if (req.file) {
+        filename = req.file.originalname;
+        content = req.file.buffer;
+        contentType = req.file.mimetype;
+      } else if (req.body.filename && req.body.content) {
+        filename = req.body.filename;
+        content = req.body.content;
+        contentType = req.body.contentType; // optional
+      } else {
+        return res.status(400).json({ error: 'No file uploaded (file or filename/content required)' });
+      }
 
       const token = process.env.BLOB_READ_WRITE_TOKEN;
       if (!token) {
+        console.error('UPLOAD ERROR: BLOB_READ_WRITE_TOKEN is not defined');
         return res.status(500).json({ error: 'BLOB_READ_WRITE_TOKEN tidak ditemukan.' });
       }
 
-      const { url } = await put(file.originalname, file.buffer, {
+      const blob = await put(filename, content, {
         access: 'public',
         token,
-        contentType: file.mimetype,
+        contentType,
       });
 
-      res.json({ url });
+      res.json(blob);
     } catch (err: any) {
-      console.error('Vercel Blob upload error:', err);
+      console.error('UPLOAD ERROR:', err);
       res.status(500).json({ error: err.message });
     }
   });
