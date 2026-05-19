@@ -84,8 +84,13 @@ export default function EditorPage() {
   const scrollToPage = (page: number) => {
     if (!scrollContainerRef.current) return;
     const container = scrollContainerRef.current;
-    const height = container.scrollHeight;
-    const targetScroll = ((page - 1) * height) / totalPages;
+    
+    // We want to scroll to the top of the specific simulated page
+    // The total document height in mm is docHeight * totalPages
+    // We need to convert it to px and then apply zoom
+    const pageHeightPx = (docHeight / 25.4) * 96 * (zoom / 100);
+    const targetScroll = (page - 1) * pageHeightPx;
+    
     container.scrollTo({ top: targetScroll, behavior: 'smooth' });
   };
 
@@ -530,29 +535,38 @@ export default function EditorPage() {
               )}
             </div>
             
-            <div className="flex items-center gap-3">
-               {totalPages > 1 && (
-                 <>
-                   <button 
-                      disabled={currentPage <= 1}
-                      onClick={() => scrollToPage(currentPage - 1)}
-                      className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 rounded transition-colors disabled:opacity-50"
-                   >
-                      <ChevronLeft className="w-4 h-4" />
-                   </button>
-                   <span className="text-xs font-bold text-slate-700 dark:text-slate-200 select-none">Halaman {currentPage} dari {totalPages}</span>
-                   <button 
-                      disabled={currentPage >= totalPages}
-                      onClick={() => scrollToPage(currentPage + 1)}
-                      className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 rounded transition-colors disabled:opacity-50"
-                   >
-                      <ChevronLeft className="w-4 h-4 rotate-180" />
-                   </button>
-                 </>
-               )}
-               {totalPages <= 1 && <span className="text-xs font-bold text-slate-700 dark:text-slate-200 select-none">Tampilan Dokumen</span>}
+              {/* Pagination Controls Enhanced */}
+              <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
+                 <button 
+                    disabled={currentPage <= 1}
+                    onClick={() => scrollToPage(currentPage - 1)}
+                    className="p-1.5 hover:bg-white dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 rounded-md transition-all shadow-sm disabled:opacity-30 disabled:shadow-none"
+                 >
+                    <ChevronLeft className="w-4 h-4" />
+                 </button>
+                 
+                 <div className="flex items-center gap-1 px-2">
+                    <input 
+                      type="number" 
+                      value={currentPage}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value);
+                        if (!isNaN(val)) scrollToPage(Math.max(1, Math.min(totalPages, val)));
+                      }}
+                      className="w-8 text-center bg-transparent text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-1 focus:ring-blue-500 rounded p-0.5"
+                    />
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">/ {totalPages}</span>
+                 </div>
+
+                 <button 
+                    disabled={currentPage >= totalPages}
+                    onClick={() => scrollToPage(currentPage + 1)}
+                    className="p-1.5 hover:bg-white dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 rounded-md transition-all shadow-sm disabled:opacity-30 disabled:shadow-none"
+                 >
+                    <ChevronLeft className="w-4 h-4 rotate-180" />
+                 </button>
+              </div>
             </div>
-          </div>
 
           <div 
              ref={scrollContainerRef}
@@ -619,7 +633,8 @@ export default function EditorPage() {
                       paddingLeft: `${parseFloat(pdfSettings.marginLeft) || 1.5}cm`,
                       paddingRight: `${parseFloat(pdfSettings.marginRight) || 1.5}cm`,
                       fontFamily: pdfSettings.fontFamily === 'Times New Roman' ? '"Times New Roman", Times, serif' : 'Arial, sans-serif',
-                      fontSize: pdfSettings.fontSize === '12 pt' ? '12pt' : '11pt'
+                      fontSize: pdfSettings.fontSize === '12 pt' ? '12pt' : '11pt',
+                      boxSizing: 'border-box'
                    }}
                 >
                        {/* Header Render */}
@@ -681,7 +696,7 @@ export default function EditorPage() {
                                <ol className="list-decimal pl-6 space-y-5" start={1} style={{ boxSizing: 'border-box' }}>
                                  {group.map((q, idx) => (
                                    <li key={q.id} data-q-id={q.id} className="pl-2 break-inside-auto">
-                                     <p className="mb-2.5 whitespace-pre-wrap text-justify text-[11pt] leading-relaxed" style={{ hyphens: 'auto', wordBreak: 'break-word', width: '100%' }}>
+                                     <p className="mb-2.5 whitespace-pre-wrap text-justify text-[11pt] leading-relaxed block" style={{ hyphens: 'auto', wordBreak: 'break-word', width: '100%', maxWidth: '100%' }}>
                                        {q.text || `Soal ${questions.indexOf(q) + 1} (${q.type})`}
                                      </p>
                                      {q.imageUrl && <div className="mb-3 mt-3"><img src={q.imageUrl} alt="Lampiran" style={{ width: q.imageWidth ? `${q.imageWidth}cm` : 'auto', height: q.imageHeight ? `${q.imageHeight}cm` : 'auto' }} className="max-w-full object-contain border border-slate-200 p-1 rounded-sm" /></div>}
