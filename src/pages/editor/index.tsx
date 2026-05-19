@@ -59,9 +59,19 @@ export default function EditorPage() {
   useEffect(() => {
     const updatePagination = () => {
       if (!docContainerRef.current) return;
-      const contentHeight = docContainerRef.current.offsetHeight;
+
+      const marginTopCm = parseFloat(pdfSettings.marginTop) || 1.5;
+      const marginBottomCm = parseFloat(pdfSettings.marginBottom) || 1.5;
+      const marginTopPx = (marginTopCm / 2.54) * 96;
+      const marginBottomPx = (marginBottomCm / 2.54) * 96;
+
       const pageHeightPx = (docHeight / 25.4) * 96;
-      const count = Math.ceil(contentHeight / pageHeightPx);
+      const usablePageHeightPx = Math.max(1, pageHeightPx - marginTopPx - marginBottomPx);
+
+      const measuredHeightPx = docContainerRef.current.scrollHeight;
+      const effectiveHeightPx = Math.max(0, measuredHeightPx - marginTopPx - marginBottomPx);
+      const count = Math.ceil(effectiveHeightPx / usablePageHeightPx);
+
       setTotalPages(Math.max(1, count));
     };
 
@@ -75,8 +85,15 @@ export default function EditorPage() {
     const container = e.currentTarget;
     const scale = zoom / 100;
     const scrollPosUnscaled = container.scrollTop / scale;
+
+    const marginTopCm = parseFloat(pdfSettings.marginTop) || 1.5;
+    const marginBottomCm = parseFloat(pdfSettings.marginBottom) || 1.5;
+    const marginTopPx = (marginTopCm / 2.54) * 96;
+    const marginBottomPx = (marginBottomCm / 2.54) * 96;
     const pageHeightPx = (docHeight / 25.4) * 96;
-    const page = Math.floor(scrollPosUnscaled / pageHeightPx) + 1;
+    const usablePageHeightPx = Math.max(1, pageHeightPx - marginTopPx - marginBottomPx);
+
+    const page = Math.floor(scrollPosUnscaled / usablePageHeightPx) + 1;
     setCurrentPage(Math.max(1, Math.min(totalPages, page)));
   };
 
@@ -85,8 +102,15 @@ export default function EditorPage() {
     const container = scrollContainerRef.current;
     const clampedPage = Math.max(1, Math.min(totalPages, page));
     const scale = zoom / 100;
-    const pageHeightPxUnscaled = (docHeight / 25.4) * 96;
-    const targetUnscaled = (clampedPage - 1) * pageHeightPxUnscaled;
+
+    const marginTopCm = parseFloat(pdfSettings.marginTop) || 1.5;
+    const marginBottomCm = parseFloat(pdfSettings.marginBottom) || 1.5;
+    const marginTopPx = (marginTopCm / 2.54) * 96;
+    const marginBottomPx = (marginBottomCm / 2.54) * 96;
+    const pageHeightPx = (docHeight / 25.4) * 96;
+    const usablePageHeightPx = Math.max(1, pageHeightPx - marginTopPx - marginBottomPx);
+
+    const targetUnscaled = (clampedPage - 1) * usablePageHeightPx;
     const targetScroll = targetUnscaled * scale;
 
     setCurrentPage(clampedPage);
@@ -636,9 +660,10 @@ export default function EditorPage() {
                 ))}
 
                 {/* Actual Printed Content Area */}
-                <div 
-                   className="w-full text-black min-h-full flex flex-col"
-                   style={{ 
+                <div
+                   className="w-full text-black"
+                   style={{
+                      minHeight: `${docHeight}mm`,
                       paddingTop: `${parseFloat(pdfSettings.marginTop) || 1.5}cm`,
                       paddingBottom: `${parseFloat(pdfSettings.marginBottom) || 1.5}cm`,
                       paddingLeft: `${parseFloat(pdfSettings.marginLeft) || 1.5}cm`,
