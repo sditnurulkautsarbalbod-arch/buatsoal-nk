@@ -15,9 +15,10 @@ export const vercelService = {
         },
       });
       return response.data.url;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Upload to Vercel Blob failed:', error);
-      throw new Error('Gagal mengunggah file ke Vercel Blob.');
+      const message = error.response?.data?.error || error.message;
+      throw new Error(`Gagal mengunggah file: ${message}`);
     }
   },
 
@@ -31,9 +32,10 @@ export const vercelService = {
         return response.data.results as T[];
       }
       throw new Error(response.data.error || 'Query failed');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Vercel Postgres Query failed:', error);
-      throw error;
+      const message = error.response?.data?.error || error.message;
+      throw new Error(`Kesalahan Database: ${message}`);
     }
   },
 
