@@ -1,24 +1,50 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Search, Filter, Plus, FileText, MoreVertical, FileDown, BookOpen } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { vercelService } from '@/services/vercelService';
 
-const initialBankSoal: any[] = [];
+interface BankSoalRow {
+  id: string;
+  question: string;
+  mapel: string;
+  kelas: string;
+  jenis: string;
+  tingkat: string;
+  created_at?: string;
+}
 
 export default function BankSoalPage() {
   const [searchTerm, setSearchTerm] = useState('');
-  const [soalList, setSoalList] = useState(initialBankSoal);
+  const [soalList, setSoalList] = useState<BankSoalRow[]>([]);
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
 
-  const filteredSoal = soalList.filter(s => 
-    s.question.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    s.mapel.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.bab.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.kelas.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.jenis.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.tingkat.toLowerCase().includes(searchTerm.toLowerCase())
+  useEffect(() => {
+    const loadBankSoal = async () => {
+      try {
+        await vercelService.initSchema();
+        const rows = await vercelService.query<BankSoalRow>(
+          `SELECT id, question, mapel, kelas, jenis, tingkat, created_at
+           FROM bank_soal
+           ORDER BY created_at DESC`
+        );
+        setSoalList(rows || []);
+      } catch (err) {
+        console.error('Load bank soal failed:', err);
+      }
+    };
+
+    loadBankSoal();
+  }, []);
+
+  const filteredSoal = soalList.filter(s =>
+    s.question.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (s.mapel || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (s.kelas || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (s.jenis || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (s.tingkat || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const duplicateSoal = (id: string) => {
@@ -86,11 +112,11 @@ export default function BankSoalPage() {
                        <span className="px-2 py-1 bg-indigo-100 text-indigo-700 text-[10px] font-bold rounded uppercase">{soal.mapel}</span>
                        <span className="px-2 py-1 bg-slate-100 text-slate-600 text-[10px] font-bold rounded uppercase">KL. {soal.kelas}</span>
                      </div>
-                     <h3 className="text-sm font-semibold text-slate-900">{soal.bab}</h3>
+                     <h3 className="text-sm font-semibold text-slate-900 line-clamp-1">{soal.question}</h3>
                      <p className="text-xs text-slate-500 mt-1">{soal.jenis} • {soal.tingkat}</p>
                   </div>
                   <div className="text-[10px] text-slate-400 font-medium mt-4 md:mt-0 flex items-center">
-                    <BookOpen className="w-3 h-3 mr-1" /> Ditambahkan {soal.date}
+                    <BookOpen className="w-3 h-3 mr-1" /> Ditambahkan {soal.created_at ? new Date(soal.created_at).toLocaleDateString('id-ID') : '-'}
                   </div>
                </div>
                

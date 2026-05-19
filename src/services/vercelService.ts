@@ -73,6 +73,17 @@ export const vercelService = {
         content TEXT,
         updatedAt TEXT,
         editorState TEXT
+      )`,
+      `CREATE TABLE IF NOT EXISTS bank_soal (
+        id TEXT PRIMARY KEY,
+        question TEXT NOT NULL,
+        jenis TEXT NOT NULL,
+        mapel TEXT,
+        kelas TEXT,
+        tingkat TEXT,
+        pembahasan TEXT,
+        options_json TEXT,
+        created_at TEXT
       )`
     ];
 

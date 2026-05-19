@@ -37,6 +37,7 @@ export default function EditorPage() {
   const [isPdfSettingsOpen, setIsPdfSettingsOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSavingToBank, setIsSavingToBank] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [imageModalConfig, setImageModalConfig] = useState<{ isOpen: boolean, tempUrl: string, questionId: string, widthCm: number, heightCm: number } | null>(null);
   const [activeQuestionIndex, setActiveQuestionIndex] = useState(0);
@@ -44,7 +45,6 @@ export default function EditorPage() {
 
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const docContainerRef = useRef<HTMLDivElement>(null);
 
   const isLandscape = pdfSettings.orientation === 'Landscape';
@@ -81,40 +81,9 @@ export default function EditorPage() {
     return () => observer.disconnect();
   }, [docHeight, questions, header, pdfSettings, zoom]);
 
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const container = e.currentTarget;
-    const scale = zoom / 100;
-    const scrollPosUnscaled = container.scrollTop / scale;
-
-    const marginTopCm = parseFloat(pdfSettings.marginTop) || 1.5;
-    const marginBottomCm = parseFloat(pdfSettings.marginBottom) || 1.5;
-    const marginTopPx = (marginTopCm / 2.54) * 96;
-    const marginBottomPx = (marginBottomCm / 2.54) * 96;
-    const pageHeightPx = (docHeight / 25.4) * 96;
-    const usablePageHeightPx = Math.max(1, pageHeightPx - marginTopPx - marginBottomPx);
-
-    const page = Math.floor(scrollPosUnscaled / usablePageHeightPx) + 1;
-    setCurrentPage(Math.max(1, Math.min(totalPages, page)));
-  };
-
-  const scrollToPage = (page: number) => {
-    if (!scrollContainerRef.current) return;
-    const container = scrollContainerRef.current;
+  const goToPage = (page: number) => {
     const clampedPage = Math.max(1, Math.min(totalPages, page));
-    const scale = zoom / 100;
-
-    const marginTopCm = parseFloat(pdfSettings.marginTop) || 1.5;
-    const marginBottomCm = parseFloat(pdfSettings.marginBottom) || 1.5;
-    const marginTopPx = (marginTopCm / 2.54) * 96;
-    const marginBottomPx = (marginBottomCm / 2.54) * 96;
-    const pageHeightPx = (docHeight / 25.4) * 96;
-    const usablePageHeightPx = Math.max(1, pageHeightPx - marginTopPx - marginBottomPx);
-
-    const targetUnscaled = (clampedPage - 1) * usablePageHeightPx;
-    const targetScroll = targetUnscaled * scale;
-
     setCurrentPage(clampedPage);
-    container.scrollTo({ top: targetScroll, behavior: 'smooth' });
   };
 
   useEffect(() => {
@@ -185,6 +154,50 @@ export default function EditorPage() {
     }
   };
 
+  const handleSaveToBankSoal = async () => {
+    if (questions.length === 0) {
+      toast.error('Belum ada soal untuk disimpan ke bank soal.');
+      return;
+    }
+
+    setIsSavingToBank(true);
+    const toastId = toast.loading('Menyimpan ke bank soal...');
+
+    try {
+      await vercelService.initSchema();
+
+      const createdAt = new Date().toISOString();
+      for (const q of questions) {
+        const questionText = (q.text || '').trim();
+        if (!questionText) continue;
+
+        const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        await vercelService.query(
+          `INSERT INTO bank_soal (id, question, jenis, mapel, kelas, tingkat, pembahasan, options_json, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          [
+            id,
+            questionText,
+            q.type,
+            header.mataPelajaran || '',
+            header.kelas || '',
+            q.tingkatKesulitan || 'Sedang',
+            q.pembahasan || '',
+            JSON.stringify(q.options || []),
+            createdAt,
+          ]
+        );
+      }
+
+      toast.success('Soal berhasil disimpan ke bank soal!', { id: toastId });
+    } catch (err: any) {
+      console.error('Save to bank soal failed:', err);
+      toast.error(`Gagal menyimpan ke bank soal: ${err?.message || 'Unknown error'}`, { id: toastId });
+    } finally {
+      setIsSavingToBank(false);
+    }
+  };
+
   const handlePrint = () => {
     toast.success('Mempersiapkan PDF...', {
       description: 'Dialog cetak/download akan segera terbuka.'
@@ -214,6 +227,9 @@ export default function EditorPage() {
             .question-item {
               break-inside: auto;
               page-break-inside: auto;
+            }
+            .preview-doc-content {
+              transform: none !important;
             }
           }
           .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -565,7 +581,14 @@ export default function EditorPage() {
                   <div className="w-px h-5 bg-slate-300 dark:bg-slate-700 mx-2"></div>
                   <button className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 rounded transition-colors tooltip" title="Pengaturan PDF" onClick={() => setIsPdfSettingsOpen(true)}><Settings className="w-4 h-4" /></button>
                   <button className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 rounded transition-colors tooltip" title="Download PDF" onClick={handlePrint}><Download className="w-4 h-4" /></button>
-                  <button className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 rounded transition-colors tooltip" title="Simpan ke Bank Soal" onClick={() => toast.success("Soal berhasil disimpan ke bank soal!")}><Save className="w-4 h-4" /></button>
+                  <button
+                    className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 rounded transition-colors tooltip disabled:opacity-50"
+                    title="Simpan ke Bank Soal"
+                    onClick={handleSaveToBankSoal}
+                    disabled={isSavingToBank}
+                  >
+                    {isSavingToBank ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  </button>
                 </>
               )}
             </div>
@@ -574,7 +597,7 @@ export default function EditorPage() {
               <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
                  <button 
                     disabled={currentPage <= 1}
-                    onClick={() => scrollToPage(currentPage - 1)}
+                    onClick={() => goToPage(currentPage - 1)}
                     className="p-1.5 hover:bg-white dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 rounded-md transition-all shadow-sm disabled:opacity-30 disabled:shadow-none"
                  >
                     <ChevronLeft className="w-4 h-4" />
@@ -586,7 +609,7 @@ export default function EditorPage() {
                       value={currentPage}
                       onChange={(e) => {
                         const val = parseInt(e.target.value);
-                        if (!isNaN(val)) scrollToPage(Math.max(1, Math.min(totalPages, val)));
+                        if (!isNaN(val)) goToPage(Math.max(1, Math.min(totalPages, val)));
                       }}
                       className="w-8 text-center bg-transparent text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-1 focus:ring-blue-500 rounded p-0.5"
                     />
@@ -595,7 +618,7 @@ export default function EditorPage() {
 
                  <button 
                     disabled={currentPage >= totalPages}
-                    onClick={() => scrollToPage(currentPage + 1)}
+                    onClick={() => goToPage(currentPage + 1)}
                     className="p-1.5 hover:bg-white dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 rounded-md transition-all shadow-sm disabled:opacity-30 disabled:shadow-none"
                  >
                     <ChevronLeft className="w-4 h-4 rotate-180" />
@@ -603,37 +626,45 @@ export default function EditorPage() {
               </div>
             </div>
 
-          <div 
-             ref={scrollContainerRef}
-             onScroll={handleScroll}
-             className="flex-1 overflow-y-auto w-full p-4 md:p-8 flex flex-col items-center justify-start print:p-0 no-scrollbar gap-0 scroll-smooth relative"
+          <div
+             className="flex-1 overflow-hidden w-full p-4 md:p-8 flex flex-col items-center justify-start print:p-0 no-scrollbar gap-0 relative"
           >
              
              {/* Floating Mobile Pagination */}
              {totalPages > 1 && (
                <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-slate-900/90 dark:bg-white/90 text-white dark:text-slate-900 px-4 py-2 rounded-full shadow-2xl flex items-center gap-4 z-[60] backdrop-blur-md xl:hidden">
-                  <button onClick={() => scrollToPage(currentPage - 1)} disabled={currentPage <= 1} className="p-1 hover:bg-white/10 dark:hover:bg-slate-100 rounded-full disabled:opacity-30">
+                  <button onClick={() => goToPage(currentPage - 1)} disabled={currentPage <= 1} className="p-1 hover:bg-white/10 dark:hover:bg-slate-100 rounded-full disabled:opacity-30">
                     <ChevronLeft className="w-5 h-5" />
                   </button>
                   <span className="text-xs font-bold whitespace-nowrap">Halaman {currentPage} / {totalPages}</span>
-                  <button onClick={() => scrollToPage(currentPage + 1)} disabled={currentPage >= totalPages} className="p-1 hover:bg-white/10 dark:hover:bg-slate-100 rounded-full disabled:opacity-30">
+                  <button onClick={() => goToPage(currentPage + 1)} disabled={currentPage >= totalPages} className="p-1 hover:bg-white/10 dark:hover:bg-slate-100 rounded-full disabled:opacity-30">
                     <ChevronLeft className="w-5 h-5 rotate-180" />
                   </button>
                </div>
              )}
 
-             {/* Document Container - NOW CONTINUOUS */}
-             <div 
-                ref={docContainerRef}
-                className={`bg-white shadow-xl relative transition-transform origin-top print:shadow-none print:m-0 print:block mx-auto ${isFullscreen ? 'scale-100' : ''}`}
-                style={{ 
-                   width: `${docWidth}mm`,
-                   minHeight: `${docHeight}mm`,
-                   transform: `scale(${zoom / 100})`,
-                   marginBottom: `${((zoom / 100) * docHeight) - docHeight + 50}mm`,
-                   position: 'relative'
+             {/* Document Container - page-clipped preview */}
+             <div
+                className={`bg-transparent relative mx-auto ${isFullscreen ? 'scale-100' : ''}`}
+                style={{
+                  width: `${docWidth}mm`,
+                  height: `${docHeight}mm`,
+                  overflow: 'hidden',
+                  position: 'relative'
                 }}
              >
+               <div
+                  ref={docContainerRef}
+                  className="preview-doc-content bg-white shadow-xl relative transition-transform origin-top print:shadow-none print:m-0 print:block"
+                  style={{
+                    width: `${docWidth}mm`,
+                    minHeight: `${docHeight}mm`,
+                    transform: `translateY(-${(currentPage - 1) * docHeight}mm) scale(${zoom / 100})`,
+                    marginBottom: `${(zoom / 100 - 1) * docHeight}mm`,
+                    transformOrigin: 'top left',
+                    position: 'relative'
+                  }}
+               >
                 {/* Visual Margins (Dotted lines simulation) */}
                 <div className="absolute inset-x-0 border-t border-dashed border-slate-300 pointer-events-none print:hidden flex justify-start pl-8" style={{ top: `${parseFloat(pdfSettings.marginTop) || 1.5}cm` }}>
                    <span className="bg-slate-50 text-[10px] px-1.5 py-0.5 -translate-y-1/2 text-slate-500 absolute font-medium rounded border border-slate-200">{parseFloat(pdfSettings.marginTop) || 1.5} cm</span>
