@@ -1,6 +1,6 @@
 {
   "name": "EduScript Pro",
-  "description": "Platform pembuat soal ujian profesional dengan integrasi AI dan Cloudflare D1.",
+  "description": "Platform pembuat soal ujian profesional dengan integrasi AI, Vercel Blob, dan Vercel Postgres.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
