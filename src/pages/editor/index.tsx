@@ -194,6 +194,13 @@ export default function EditorPage() {
     const clone = source.cloneNode(true) as HTMLElement;
     inlineComputedStyles(source, clone);
 
+    clone.style.width = '100%';
+    clone.style.maxWidth = 'none';
+    clone.style.margin = '0';
+    clone.style.padding = '0';
+    clone.style.minHeight = 'auto';
+    clone.style.background = '#ffffff';
+
     return `<!doctype html>
 <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
 <head>
