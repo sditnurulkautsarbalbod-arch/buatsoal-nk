@@ -1,10 +1,10 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useEditorStore } from '@/store/useEditorStore';
 import { useDraftStore } from '@/store/useDraftStore';
 import { useAdminStore } from '@/store/useAdminStore';
 import { useAuthStore } from '@/store/useAuthStore';
-import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Sparkles, Check, MoreVertical, ChevronLeft, Image as ImageIcon, ChevronDown, Plus, Minus, Maximize2, Minimize2, Trash2, ListTodo, AlignLeft, FileText, FileCheck2, Table, Upload, Trello, Menu, Activity, Bell, Search, Download, X, Settings, Save, Loader2 } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { Sparkles, Check, MoreVertical, Image as ImageIcon, ChevronDown, Plus, Minus, Maximize2, Minimize2, Trash2, ListTodo, AlignLeft, FileText, FileCheck2, Table, Upload, Trello, Menu, Activity, Bell, Search, Download, X, Settings, Save, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/Button';
 import { AIGeneratorModal } from '@/components/AIGeneratorModal';
@@ -17,7 +17,6 @@ export default function EditorPage() {
   const { options } = useAdminStore();
   const { user } = useAuthStore();
   const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
   const draftId = searchParams.get('id');
   const { defaultLogos, defaultSchoolInfo } = useAdminStore();
 
@@ -42,10 +41,6 @@ export default function EditorPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [imageModalConfig, setImageModalConfig] = useState<{ isOpen: boolean, tempUrl: string, questionId: string, widthCm: number, heightCm: number } | null>(null);
   const [activeQuestionIndex, setActiveQuestionIndex] = useState(0);
-  const prevQuestionsLengthRef = useRef(questions.length);
-
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
 
   const questionTypes = ['pg', 'isian', 'uraian'] as const;
   type QuestionType = typeof questionTypes[number];
@@ -62,114 +57,10 @@ export default function EditorPage() {
     uraian: 'Jawablah pertanyaan-pertanyaan di bawah ini dengan jelas dan benar!',
   };
 
-  const estimateQuestionLines = (q: any) => {
-    const textLines = Math.max(2, Math.ceil((q.text || '').length / 85));
-    const imageLines = q.imageUrl ? 10 : 0;
-    const optionLines = q.type === 'pg'
-      ? Math.max(2, Math.ceil((q.options?.reduce((n: number, o: any) => n + (o.text || '').length, 0) || 0) / 60))
-      : 0;
-    const answerLines = q.type === 'uraian' ? 8 : q.type === 'isian' ? 4 : 0;
-    return textLines + imageLines + optionLines + answerLines + 3;
-  };
-
   const groupsByType = questionTypes.map((type) => ({
     type,
     items: questions.filter((q) => q.type === type),
   }));
-
-  type PageSection = {
-    type: QuestionType;
-    showHeader: boolean;
-    items: Array<any>;
-  };
-
-  type PreviewPage = {
-    sections: PageSection[];
-  };
-
-  const firstPageLineBudget = 14;
-  const nextPageLineBudget = 36;
-  const previewPages: PreviewPage[] = [];
-  let currentPageDraft: PreviewPage = { sections: [] };
-  let remainingLines = firstPageLineBudget;
-
-  const commitCurrentPage = () => {
-    if (currentPageDraft.sections.length > 0) {
-      previewPages.push(currentPageDraft);
-      currentPageDraft = { sections: [] };
-      remainingLines = nextPageLineBudget;
-    }
-  };
-
-  for (const group of groupsByType) {
-    if (group.items.length === 0) continue;
-
-    let itemCursor = 0;
-    let needHeader = true;
-
-    while (itemCursor < group.items.length) {
-      const headerCost = needHeader ? 4 : 0;
-      const currentItem = group.items[itemCursor];
-      const itemCost = estimateQuestionLines(currentItem);
-
-      if (remainingLines < headerCost + 6) {
-        commitCurrentPage();
-        continue;
-      }
-
-      if (remainingLines < headerCost + itemCost) {
-        if (currentPageDraft.sections.length === 0) {
-          currentPageDraft.sections.push({
-            type: group.type,
-            showHeader: needHeader,
-            items: [currentItem],
-          });
-          remainingLines = Math.max(0, remainingLines - headerCost - itemCost);
-          itemCursor += 1;
-          needHeader = false;
-          commitCurrentPage();
-          continue;
-        }
-
-        commitCurrentPage();
-        continue;
-      }
-
-      let section = currentPageDraft.sections.find((s) => s.type === group.type);
-      if (!section) {
-        section = { type: group.type, showHeader: needHeader, items: [] };
-        currentPageDraft.sections.push(section);
-        remainingLines -= headerCost;
-        needHeader = false;
-      }
-
-      section.items.push(currentItem);
-      remainingLines -= itemCost;
-      itemCursor += 1;
-    }
-  }
-
-  commitCurrentPage();
-
-  const pageData = previewPages.length > 0
-    ? previewPages
-    : [{ sections: [] }];
-
-  const activePage = pageData[Math.max(0, currentPage - 1)] || pageData[0];
-  const computedPages = pageData.length;
-
-  const questionOrderByType: Record<QuestionType, Record<string, number>> = {
-    pg: {},
-    isian: {},
-    uraian: {},
-  };
-
-  for (const type of questionTypes) {
-    const typed = questions.filter((q) => q.type === type);
-    typed.forEach((q, i) => {
-      questionOrderByType[type][q.id] = i + 1;
-    });
-  }
 
   const isLandscape = pdfSettings.orientation === 'Landscape';
   const paperWidthObj = { 'A4': 210, 'F4': 210 };
@@ -178,19 +69,6 @@ export default function EditorPage() {
   const hBase = paperHeightObj[pdfSettings.paperSize as keyof typeof paperHeightObj] || 297;
   const docWidth = isLandscape ? hBase : wBase;
   const docHeight = isLandscape ? wBase : hBase;
-
-  useEffect(() => {
-    setTotalPages(computedPages);
-  }, [computedPages]);
-
-  const goToPage = (page: number) => {
-    const clampedPage = Math.max(1, Math.min(totalPages, page));
-    setCurrentPage(clampedPage);
-  };
-
-  useEffect(() => {
-     if (currentPage > totalPages) setCurrentPage(Math.max(1, totalPages));
-  }, [totalPages, currentPage]);
 
   useEffect(() => {
     if (draftId) {
@@ -676,7 +554,7 @@ export default function EditorPage() {
             </div>
           )}
 
-          {/* Zoom Toolbar & Pagination */}
+          {/* Zoom Toolbar */}
           <div className={`h-14 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 shadow-sm z-10 print:hidden shrink-0 transition-colors ${isFullscreen ? 'sticky top-0' : ''}`}>
             <div className="flex items-center gap-3">
               <button className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 rounded transition-colors" onClick={() => setZoom(Math.max(50, zoom - 10))}><Minus className="w-4 h-4" /></button>
@@ -703,57 +581,13 @@ export default function EditorPage() {
               )}
             </div>
             
-              {/* Pagination Controls Enhanced */}
-              <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
-                 <button 
-                    disabled={currentPage <= 1}
-                    onClick={() => goToPage(currentPage - 1)}
-                    className="p-1.5 hover:bg-white dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 rounded-md transition-all shadow-sm disabled:opacity-30 disabled:shadow-none"
-                 >
-                    <ChevronLeft className="w-4 h-4" />
-                 </button>
-                 
-                 <div className="flex items-center gap-1 px-2">
-                    <input 
-                      type="number" 
-                      value={currentPage}
-                      onChange={(e) => {
-                        const val = parseInt(e.target.value);
-                        if (!isNaN(val)) goToPage(Math.max(1, Math.min(totalPages, val)));
-                      }}
-                      className="w-8 text-center bg-transparent text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-1 focus:ring-blue-500 rounded p-0.5"
-                    />
-                    <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">/ {totalPages}</span>
-                 </div>
-
-                 <button 
-                    disabled={currentPage >= totalPages}
-                    onClick={() => goToPage(currentPage + 1)}
-                    className="p-1.5 hover:bg-white dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 rounded-md transition-all shadow-sm disabled:opacity-30 disabled:shadow-none"
-                 >
-                    <ChevronLeft className="w-4 h-4 rotate-180" />
-                 </button>
-              </div>
             </div>
 
           <div
-             className="flex-1 overflow-hidden w-full p-4 md:p-8 flex flex-col items-center justify-start print:p-0 no-scrollbar gap-0 relative"
+             className="flex-1 overflow-y-auto w-full p-4 md:p-8 flex flex-col items-center justify-start print:p-0 no-scrollbar gap-0 relative"
           >
-             
-             {/* Floating Mobile Pagination */}
-             {totalPages > 1 && (
-               <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-slate-900/90 dark:bg-white/90 text-white dark:text-slate-900 px-4 py-2 rounded-full shadow-2xl flex items-center gap-4 z-[60] backdrop-blur-md xl:hidden">
-                  <button onClick={() => goToPage(currentPage - 1)} disabled={currentPage <= 1} className="p-1 hover:bg-white/10 dark:hover:bg-slate-100 rounded-full disabled:opacity-30">
-                    <ChevronLeft className="w-5 h-5" />
-                  </button>
-                  <span className="text-xs font-bold whitespace-nowrap">Halaman {currentPage} / {totalPages}</span>
-                  <button onClick={() => goToPage(currentPage + 1)} disabled={currentPage >= totalPages} className="p-1 hover:bg-white/10 dark:hover:bg-slate-100 rounded-full disabled:opacity-30">
-                    <ChevronLeft className="w-5 h-5 rotate-180" />
-                  </button>
-               </div>
-             )}
 
-             {/* Document Container - fixed single page */}
+             {/* Document Container - continuous page */}
              <div
                 className={`bg-white shadow-xl relative print:shadow-none print:m-0 print:block mx-auto ${isFullscreen ? 'scale-100' : ''}`}
                 style={{
@@ -762,7 +596,7 @@ export default function EditorPage() {
                   transform: `scale(${zoom / 100})`,
                   transformOrigin: 'top center',
                   position: 'relative',
-                  overflow: 'hidden'
+                  overflow: 'visible'
                 }}
              >
                 {/* Visual Margins (Dotted lines simulation) */}
@@ -794,7 +628,6 @@ export default function EditorPage() {
                    }}
                 >
                        {/* Header Render */}
-                       {currentPage === 1 && (
                        <div className="doc-header">
                          <div className="flex gap-4 border-b-2 border-black pb-4 mb-5 border-double border-b-[3px]">
                             <div className="w-20 lg:w-24 shrink-0 flex items-center justify-center">
@@ -829,48 +662,52 @@ export default function EditorPage() {
                             </div>
                          </div>
                        </div>
-                       )}
-    
+
                        {/* Questions Block */}
                        <div className="space-y-6 flex-1 leading-[1.15]">
-                         {activePage.sections.map(({ type, items: group, showHeader }) => {
+                         {groupsByType.map(({ type, items: group }) => {
                            if (group.length === 0) return null;
 
                            return (
                              <div key={`${type}-${group[0]?.id || 'empty'}`} className="mb-0 section-block">
-                               {showHeader && (
-                                 <>
-                                   <h4 className="font-bold mb-4 uppercase tracking-wider section-heading">{typeLabels[type]}</h4>
-                                   <p className="font-bold mb-4 text-[11pt] section-heading">{typeInstructions[type]}</p>
-                                 </>
-                               )}
+                               <>
+                                 <h4 className="font-bold mb-4 uppercase tracking-wider section-heading">{typeLabels[type]}</h4>
+                                 <p className="font-bold mb-4 text-[11pt] section-heading">{typeInstructions[type]}</p>
+                               </>
                                <ol
                                  className="list-decimal pl-6 space-y-5"
-                                 start={questionOrderByType[type][group[0]?.id] || 1}
                                  style={{ boxSizing: 'border-box' }}
                                >
-                                 {group.map((q) => (
-                                   <li key={q.id} data-q-id={q.id} className="pl-2 break-inside-auto question-item">
+                                 {group.map((q, questionIndex) => (
+                                   <li key={q.id} data-q-id={q.id} className="pl-2 break-inside-auto question-item" value={questionIndex + 1}>
                                      <p className="mb-2.5 whitespace-pre-wrap text-justify text-[11pt] leading-[1.35] block" style={{ hyphens: 'auto', overflowWrap: 'anywhere', wordBreak: 'normal', width: '100%', maxWidth: '100%' }}>
                                        {q.text || `Soal ${questions.indexOf(q) + 1} (${q.type})`}
                                      </p>
                                      {q.imageUrl && <div className="mb-3 mt-3 question-image"><img src={q.imageUrl} alt="Lampiran" style={{ width: q.imageWidth ? `${q.imageWidth}cm` : 'auto', height: q.imageHeight ? `${q.imageHeight}cm` : 'auto' }} className="max-w-full object-contain border border-slate-200 p-1 rounded-sm" /></div>}
-                                     {(q.type === 'pg') && q.options && (
-                                       <div className={`grid gap-2 text-[11pt] question-options ${
-                                         Math.max(...(q.options.map((o: any) => o.text.length) || [0])) < 20
-                                           ? 'grid-cols-4'
-                                           : Math.max(...(q.options.map((o: any) => o.text.length) || [0])) < 45
-                                             ? 'grid-cols-2'
-                                             : 'grid-cols-1'
-                                       }`}>
-                                          {q.options.map((opt: any) => (
-                                            <div key={opt.id} className="flex gap-1">
-                                              <span className="font-semibold w-5 shrink-0 text-left">{opt.id}.</span>
-                                              <span className="flex-1" style={{ wordBreak: 'break-word' }}>{opt.text}</span>
-                                            </div>
-                                          ))}
-                                       </div>
-                                     )}
+                                     {(q.type === 'pg') && q.options && (() => {
+                                       const maxOptionLength = Math.max(...(q.options.map((o: any) => o.text.length) || [0]));
+                                       const isTwoColumns = maxOptionLength >= 20 && maxOptionLength < 45;
+                                       const reorderedOptions = isTwoColumns
+                                         ? ['A', 'C', 'B', 'D'].map((id) => q.options.find((opt: any) => opt.id === id)).filter(Boolean)
+                                         : q.options;
+
+                                       return (
+                                         <div className={`grid gap-2 text-[11pt] question-options ${
+                                           maxOptionLength < 20
+                                             ? 'grid-cols-4'
+                                             : isTwoColumns
+                                               ? 'grid-cols-2'
+                                               : 'grid-cols-1'
+                                         }`}>
+                                           {reorderedOptions.map((opt: any) => (
+                                             <div key={opt.id} className="flex gap-1">
+                                               <span className="font-semibold w-5 shrink-0 text-left">{opt.id}.</span>
+                                               <span className="flex-1" style={{ wordBreak: 'break-word' }}>{opt.text}</span>
+                                             </div>
+                                           ))}
+                                         </div>
+                                       );
+                                     })()}
                                      {(q.type === 'isian' || q.type === 'uraian') && (
                                        <div className="mt-4 space-y-4">
                                          <div className="border-b border-dotted border-black w-full h-4"></div>
@@ -1014,7 +851,7 @@ export default function EditorPage() {
                   </div>
 
                   <div className="px-5 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
-                     <p className="text-[13px] font-medium text-slate-500">Total Halaman: {totalPages}</p>
+                     <p className="text-[13px] font-medium text-slate-500">Preview dokumen memanjang</p>
                      <Button onClick={() => setIsPdfSettingsOpen(false)} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium text-sm transition-colors shadow-sm gap-2">
                         <Check className="w-4 h-4" /> Simpan
                      </Button>
