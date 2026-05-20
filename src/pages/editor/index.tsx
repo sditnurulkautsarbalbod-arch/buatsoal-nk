@@ -171,6 +171,66 @@ export default function EditorPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const buildExportCss = () => `
+    @page {
+      margin: 1.5cm;
+      size: A4;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: auto;
+      font-family: 'Times New Roman', serif;
+      font-size: 11pt;
+      line-height: 1.15;
+      color: #000000;
+      background: #ffffff;
+    }
+    #module-content {
+      width: 100% !important;
+      padding: 0 !important;
+      max-width: none !important;
+      margin: 0 !important;
+      font-family: 'Times New Roman', serif !important;
+      font-size: 11pt !important;
+      line-height: 1.15 !important;
+      color: #000000 !important;
+    }
+    .print-content {
+      box-shadow: none !important;
+      border: none !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      min-height: auto !important;
+      overflow: visible !important;
+    }
+    h1, h2, h3, h4, h5, p, li, td, th, span, div { color: #000000; }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 15px; border: 1px solid #000000; }
+    th { border: 1px solid #000000; padding: 8px; font-weight: bold; text-align: left; }
+    td { border: 1px solid #000000; padding: 8px; vertical-align: top; }
+    .section-title { font-weight: bold; margin: 18px 0 10px; text-transform: uppercase; }
+    .doc-header-title { text-align: center; margin-bottom: 18px; }
+    .answer-line { border-bottom: 1px dotted #000000; height: 16px; margin-top: 12px; }
+  `;
+
+  const buildExportHtml = (title: string, content: string) => {
+    const exportCss = buildExportCss();
+    return `
+      <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+      <head>
+        <meta charset='utf-8'>
+        <title>${title}</title>
+        <style>${exportCss}</style>
+      </head>
+      <body>
+        <div class="print-content">
+          <div id="module-content">${content}</div>
+        </div>
+      </body>
+      </html>
+    `;
+  };
+
   const handleExportDocx = () => {
     const content = document.getElementById('module-content')?.innerHTML;
     if (!content) {
@@ -179,31 +239,7 @@ export default function EditorPage() {
     }
 
     const title = header.judulUjian || 'Dokumen Soal';
-    const preHtml = `
-      <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-      <head>
-        <meta charset='utf-8'>
-        <title>${title}</title>
-        <style>
-          body {
-            font-family: 'Times New Roman', serif;
-            font-size: 11pt;
-            line-height: 1.15;
-            color: #000000;
-          }
-          h1, h2, h3, h4, h5, p, li, td, th, span, div { color: #000000; }
-          table { border-collapse: collapse; width: 100%; margin-bottom: 15px; border: 1px solid #000000; }
-          th { border: 1px solid #000000; padding: 8px; font-weight: bold; text-align: left; }
-          td { border: 1px solid #000000; padding: 8px; vertical-align: top; }
-          .section-title { font-weight: bold; margin: 18px 0 10px; text-transform: uppercase; }
-          .doc-header-title { text-align: center; margin-bottom: 18px; }
-          .answer-line { border-bottom: 1px dotted #000000; height: 16px; margin-top: 12px; }
-        </style>
-      </head>
-      <body>
-    `;
-    const postHtml = '</body></html>';
-    const html = preHtml + content + postHtml;
+    const html = buildExportHtml(title, content);
 
     const blob = new Blob(['﻿', html], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
     const url = 'data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;charset=utf-8,' + encodeURIComponent(html);
@@ -223,7 +259,30 @@ export default function EditorPage() {
   };
 
   const handleExportPdf = () => {
-    window.print();
+    const content = document.getElementById('module-content')?.innerHTML;
+    if (!content) {
+      toast.error('Konten dokumen belum tersedia.');
+      return;
+    }
+
+    const title = header.judulUjian || 'Dokumen Soal';
+    const html = buildExportHtml(title, content);
+    const printWindow = window.open('', '_blank');
+
+    if (!printWindow) {
+      toast.error('Popup diblokir browser. Izinkan popup untuk download PDF.');
+      return;
+    }
+
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+
+    printWindow.onload = () => {
+      printWindow.focus();
+      printWindow.print();
+      printWindow.close();
+    };
   };
 
   return (
@@ -231,28 +290,10 @@ export default function EditorPage() {
       <style>
         {`
           @media print {
-            @page {
-              margin: 1.5cm;
-              size: auto;
-            }
             .no-print, nav, footer, button {
               display: none !important;
             }
-            #module-content {
-              width: 100% !important;
-              padding: 0 !important;
-              font-family: 'Times New Roman', serif !important;
-              font-size: 11pt !important;
-              line-height: 1.15 !important;
-              color: #000000 !important;
-            }
-            .print-content {
-              box-shadow: none !important;
-              border: none !important;
-              margin: 0 !important;
-              padding: 0 !important;
-              min-height: auto !important;
-            }
+            ${buildExportCss()}
           }
           .no-scrollbar::-webkit-scrollbar { display: none; }
           .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -528,7 +569,7 @@ export default function EditorPage() {
           </div>
 
           <div className="flex-1 overflow-y-auto w-full p-4 md:p-8 flex flex-col items-center justify-start no-scrollbar">
-            <div className="bg-white rounded shadow-2xl overflow-hidden print-content min-h-[29.7cm] relative w-full max-w-[950px]">
+            <div className="bg-white rounded shadow-2xl overflow-visible print-content min-h-[29.7cm] relative w-full max-w-[950px]">
               <div id="module-content" className="p-6 md:p-14 leading-[1.15] max-w-[21cm] mx-auto bg-white text-black" style={{ fontFamily: '"Times New Roman", serif', fontSize: '11pt', lineHeight: '1.15' }}>
                 <div className="doc-header-title text-center mb-8">
                   {header.foundationName && <p className="font-bold uppercase mb-1">{header.foundationName}</p>}
