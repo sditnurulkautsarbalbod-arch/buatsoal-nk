@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useEditorStore } from '@/store/useEditorStore';
 import { useDraftStore } from '@/store/useDraftStore';
 import { useAdminStore } from '@/store/useAdminStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useSearchParams } from 'react-router-dom';
-import { Sparkles, Check, MoreVertical, Image as ImageIcon, ChevronDown, Plus, Minus, Maximize2, Minimize2, Trash2, ListTodo, AlignLeft, FileText, FileCheck2, Table, Upload, Trello, Menu, Activity, Bell, Search, Download, X, Settings, Save, Loader2 } from 'lucide-react';
+import { Sparkles, Check, MoreVertical, Image as ImageIcon, ChevronDown, Plus, Minus, Maximize2, Minimize2, Trash2, ListTodo, AlignLeft, FileText, FileCheck2, Table, Upload, Trello, Menu, Activity, Bell, Search, Download, FileDown, X, Settings, Save, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/Button';
 import { AIGeneratorModal } from '@/components/AIGeneratorModal';
@@ -41,6 +41,7 @@ export default function EditorPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [imageModalConfig, setImageModalConfig] = useState<{ isOpen: boolean, tempUrl: string, questionId: string, widthCm: number, heightCm: number } | null>(null);
   const [activeQuestionIndex, setActiveQuestionIndex] = useState(0);
+  const previewPaperRef = useRef<HTMLDivElement | null>(null);
 
   const questionTypes = ['pg', 'isian', 'uraian'] as const;
   type QuestionType = typeof questionTypes[number];
@@ -196,6 +197,16 @@ export default function EditorPage() {
       console.error('DOCX export failed:', err);
       toast.error(`Gagal mengunduh DOCX: ${err?.message || 'Unknown error'}`, { id: toastId });
     }
+  };
+
+  const handleDownloadPdf = () => {
+    if (!previewPaperRef.current) {
+      toast.error('Preview dokumen belum siap.');
+      return;
+    }
+
+    toast.message('Gunakan Save as PDF pada dialog print.');
+    window.print();
   };
 
   return (
@@ -568,6 +579,7 @@ export default function EditorPage() {
                 <>
                   <div className="w-px h-5 bg-slate-300 dark:bg-slate-700 mx-2"></div>
                   <button className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 rounded transition-colors tooltip" title="Pengaturan DOCX" onClick={() => setIsPdfSettingsOpen(true)}><Settings className="w-4 h-4" /></button>
+                  <button className="p-1.5 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 rounded transition-colors tooltip" title="Unduh PDF" onClick={handleDownloadPdf}><FileDown className="w-4 h-4" /></button>
                   <button className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 rounded transition-colors tooltip" title="Unduh DOCX" onClick={handleDownloadDocx}><Download className="w-4 h-4" /></button>
                   <button
                     className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 rounded transition-colors tooltip disabled:opacity-50"
@@ -589,10 +601,13 @@ export default function EditorPage() {
 
              {/* Document Container - continuous page */}
              <div
+                ref={previewPaperRef}
                 className={`bg-white shadow-xl relative print:shadow-none print:m-0 print:block mx-auto ${isFullscreen ? 'scale-100' : ''}`}
                 style={{
                   width: `${docWidth}mm`,
                   minHeight: `${docHeight}mm`,
+                  height: 'fit-content',
+                  display: 'inline-block',
                   transform: `scale(${zoom / 100})`,
                   transformOrigin: 'top center',
                   position: 'relative',
