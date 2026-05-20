@@ -2,9 +2,7 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createServer as createViteServer } from 'vite';
-import { put } from '@vercel/blob';
 import { db } from '@vercel/postgres';
-import multer from 'multer';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import { GoogleGenAI } from '@google/genai';
@@ -17,7 +15,6 @@ const __dirname = path.dirname(__filename);
 async function startServer() {
   const app = express();
   const PORT = 3000;
-  const upload = multer({ storage: multer.memoryStorage() });
 
   // Middleware
   app.use(cors()); // Allow all origins in dev
@@ -41,44 +38,6 @@ async function startServer() {
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     res.sendStatus(200);
-  });
-
-  // API: Upload to Vercel Blob
-  app.post('/api/upload', upload.single('file'), async (req, res) => {
-    try {
-      let filename: string;
-      let content: any;
-      let contentType: string | undefined;
-
-      if (req.file) {
-        filename = req.file.originalname;
-        content = req.file.buffer;
-        contentType = req.file.mimetype;
-      } else if (req.body.filename && req.body.content) {
-        filename = req.body.filename;
-        content = req.body.content;
-        contentType = req.body.contentType; // optional
-      } else {
-        return res.status(400).json({ error: 'No file uploaded (file or filename/content required)' });
-      }
-
-      const token = process.env.BLOB_READ_WRITE_TOKEN;
-      if (!token) {
-        console.error('UPLOAD ERROR: BLOB_READ_WRITE_TOKEN is not defined');
-        return res.status(500).json({ error: 'BLOB_READ_WRITE_TOKEN tidak ditemukan.' });
-      }
-
-      const blob = await put(filename, content, {
-        access: 'public',
-        token,
-        contentType,
-      });
-
-      res.json(blob);
-    } catch (err: any) {
-      console.error('UPLOAD ERROR:', err);
-      res.status(500).json({ error: err.message });
-    }
   });
 
   // API: Vercel Postgres Query

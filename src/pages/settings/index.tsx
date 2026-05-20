@@ -4,9 +4,8 @@ import { useSettingsStore } from '@/store/useSettingsStore';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { User, Shield, Bell, Save, Sparkles, Key, Check, Users as UsersIcon, Database } from 'lucide-react';
+import { User, Save, Sparkles, Key, Check, Users as UsersIcon } from 'lucide-react';
 import UserManagement from './Users';
-import { vercelService } from '@/services/vercelService';
 
 export default function SettingsPage() {
   const { user } = useAuthStore();
@@ -14,7 +13,6 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<'profil' | 'ai' | 'users'>('profil');
   const [apiKeyInput, setApiKeyInput] = useState(geminiApiKey);
   const [isSaved, setIsSaved] = useState(false);
-  const [isDbInitializing, setIsDbInitializing] = useState(false);
 
   const handleSaveAIKey = () => {
     setGeminiApiKey(apiKeyInput);
@@ -22,17 +20,6 @@ export default function SettingsPage() {
     setTimeout(() => setIsSaved(false), 3000);
   };
 
-  const handleInitDatabase = async () => {
-    setIsDbInitializing(true);
-    try {
-      await vercelService.initSchema();
-      alert('Database Vercel Postgres berhasil diinisialisasi.');
-    } catch (err: any) {
-      alert('Gagal inisialisasi: ' + err.message);
-    } finally {
-      setIsDbInitializing(false);
-    }
-  };
 
   return (
     <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-6">
@@ -41,11 +28,6 @@ export default function SettingsPage() {
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Pengaturan Sistem</h1>
           <p className="text-slate-500">Kelola profil, keamanan, dan preferensi aplikasi Anda.</p>
         </div>
-        {user?.role === 'admin' && (
-          <Button variant="outline" size="sm" onClick={handleInitDatabase} isLoading={isDbInitializing}>
-            <Database className="w-4 h-4 mr-2" /> Init Postgres
-          </Button>
-        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

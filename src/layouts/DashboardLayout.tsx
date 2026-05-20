@@ -3,7 +3,6 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useDraftStore } from '@/store/useDraftStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { useState, useEffect } from 'react';
-import { vercelService } from '@/services/vercelService';
 import {
   FileText,
   Home,
@@ -31,18 +30,14 @@ export default function DashboardLayout() {
   };
 
   useEffect(() => {
-    // Initialize Vercel Schema when dashboard loads
-    const initDB = async () => {
+    const fetchDrafts = async () => {
       try {
-        await vercelService.initSchema();
-        console.log('Vercel Postgres Schema initialized successfully');
-        // Now fetch drafts
         await useDraftStore.getState().fetchDraftsFromVercel();
       } catch (err) {
-        console.error('Failed to initialize Vercel Schema or fetch drafts:', err);
+        console.error('Failed to fetch drafts:', err);
       }
     };
-    initDB();
+    fetchDrafts();
   }, []);
 
   if (!isAuthenticated) {

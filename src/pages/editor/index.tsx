@@ -4,7 +4,7 @@ import { useDraftStore } from '@/store/useDraftStore';
 import { useAdminStore } from '@/store/useAdminStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useSearchParams } from 'react-router-dom';
-import { Sparkles, Check, MoreVertical, Image as ImageIcon, ChevronDown, Maximize2, Minimize2, Trash2, ListTodo, AlignLeft, FileText, Download, X, Save, Loader2, ArrowLeft } from 'lucide-react';
+import { Sparkles, Check, MoreVertical, Image as ImageIcon, ChevronDown, Maximize2, Minimize2, Trash2, ListTodo, AlignLeft, FileText, X, Save, Loader2, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/Button';
 import { AIGeneratorModal } from '@/components/AIGeneratorModal';
@@ -34,7 +34,6 @@ export default function EditorPage() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingToBank, setIsSavingToBank] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
   const [imageModalConfig, setImageModalConfig] = useState<{ isOpen: boolean, tempUrl: string, questionId: string, widthCm: number, heightCm: number } | null>(null);
   const [activeQuestionIndex, setActiveQuestionIndex] = useState(0);
 
@@ -106,20 +105,23 @@ export default function EditorPage() {
     }
   };
 
+  const readFileAsDataUrl = (file: File) => new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(new Error('Gagal membaca file.'));
+    reader.readAsDataURL(file);
+  });
+
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>, position: 'logoLeft' | 'logoRight') => {
     const file = e.target.files?.[0];
-    if (file) {
-      setIsUploading(true);
-      const toastId = toast.loading('Mengunggah logo ke Vercel Blob...');
-      try {
-        const url = await vercelService.uploadToBlob(file);
-        setHeaderField(position, url);
-        toast.success('Logo berhasil diunggah!', { id: toastId });
-      } catch (err) {
-        toast.error('Gagal mengunggah logo.', { id: toastId });
-      } finally {
-        setIsUploading(false);
-      }
+    if (!file) return;
+    const toastId = toast.loading('Memproses logo...');
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      setHeaderField(position, dataUrl);
+      toast.success('Logo berhasil dipasang!', { id: toastId });
+    } catch (err) {
+      toast.error('Gagal memproses logo.', { id: toastId });
     }
   };
 
@@ -133,8 +135,6 @@ export default function EditorPage() {
     const toastId = toast.loading('Menyimpan ke bank soal...');
 
     try {
-      await vercelService.initSchema();
-
       const createdAt = new Date().toISOString();
       for (const q of questions) {
         const questionText = (q.text || '').trim();
@@ -171,7 +171,7 @@ export default function EditorPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleExportWord = () => {
+  const handleExportDocx = () => {
     const content = document.getElementById('module-content')?.innerHTML;
     if (!content) {
       toast.error('Konten dokumen belum tersedia.');
@@ -205,21 +205,25 @@ export default function EditorPage() {
     const postHtml = '</body></html>';
     const html = preHtml + content + postHtml;
 
-    const blob = new Blob(['﻿', html], { type: 'application/msword' });
-    const url = 'data:application/vnd.ms-word;charset=utf-8,' + encodeURIComponent(html);
+    const blob = new Blob(['﻿', html], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+    const url = 'data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;charset=utf-8,' + encodeURIComponent(html);
     const link = document.createElement('a');
     document.body.appendChild(link);
 
     const nav = navigator as any;
     if (nav.msSaveOrOpenBlob) {
-      nav.msSaveOrOpenBlob(blob, `${title}.doc`);
+      nav.msSaveOrOpenBlob(blob, `${title}.docx`);
     } else {
       link.href = url;
-      link.download = `${title}.doc`;
+      link.download = `${title}.docx`;
       link.click();
     }
 
     document.body.removeChild(link);
+  };
+
+  const handleExportPdf = () => {
+    window.print();
   };
 
   return (
@@ -279,8 +283,8 @@ export default function EditorPage() {
         </header>
       )}
 
-      <div className="flex-1 flex flex-col xl:flex-row overflow-hidden">
-        <div className={`w-full xl:w-[45%] flex flex-col bg-slate-50 dark:bg-slate-950/50 border-r border-slate-200 dark:border-slate-800 overflow-y-auto print:hidden transition-all duration-300 ${isFullscreen ? 'hidden xl:hidden' : 'block'}`}>
+      <div className="flex-1 flex flex-col xl:flex-row overflow-y-auto xl:overflow-hidden">
+        <div className={`w-full xl:w-[45%] shrink-0 flex flex-col bg-slate-50 dark:bg-slate-950/50 border-r border-slate-200 dark:border-slate-800 overflow-y-auto print:hidden transition-all duration-300 ${isFullscreen ? 'hidden xl:hidden' : 'block'}`}>
           <div className="p-4 md:p-6 space-y-6">
             <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 p-5 transition-colors">
               <div className="flex items-center justify-between mb-4">
@@ -417,17 +421,13 @@ export default function EditorPage() {
                                   onChange={async (e) => {
                                     const file = e.target.files?.[0];
                                     if (file) {
-                                      setIsUploading(true);
-                                      const toastId = toast.loading('Mengunggah gambar ke Vercel Blob...');
+                                      const toastId = toast.loading('Memproses gambar...');
                                       try {
-                                        const url = await vercelService.uploadToBlob(file);
-                                        setImageModalConfig({ isOpen: true, tempUrl: url, questionId: q.id, widthCm: 10, heightCm: 10 });
-                                        toast.success('Gambar berhasil diunggah!', { id: toastId });
+                                        const dataUrl = await readFileAsDataUrl(file);
+                                        setImageModalConfig({ isOpen: true, tempUrl: dataUrl, questionId: q.id, widthCm: 10, heightCm: 10 });
+                                        toast.success('Gambar berhasil dipasang!', { id: toastId });
                                       } catch (err) {
-                                        toast.error('Gagal mengunggah gambar.');
-                                        toast.dismiss(toastId);
-                                      } finally {
-                                        setIsUploading(false);
+                                        toast.error('Gagal memproses gambar.', { id: toastId });
                                       }
                                     }
                                   }}
@@ -474,7 +474,7 @@ export default function EditorPage() {
           </div>
         </div>
 
-        <div className={`flex-1 flex flex-col bg-[#eef1f6] dark:bg-slate-950 relative print:bg-white overflow-hidden transition-all duration-300 ${isFullscreen ? 'fixed inset-0 z-[100] w-full h-full bg-slate-900 overflow-hidden' : ''}`}>
+        <div className={`w-full xl:flex-1 min-h-[70vh] xl:min-h-0 flex flex-col bg-[#eef1f6] dark:bg-slate-950 relative print:bg-white overflow-visible xl:overflow-hidden transition-all duration-300 ${isFullscreen ? 'fixed inset-0 z-[100] w-full h-full bg-slate-900 overflow-hidden' : ''}`}>
           <div className={`bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 p-5 shrink-0 no-print z-20 shadow-sm relative transition-colors ${isFullscreen ? 'hidden' : ''}`}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-slate-800 dark:text-white text-sm">Jenis Komponen Soal</h3>
@@ -507,7 +507,14 @@ export default function EditorPage() {
               {!isFullscreen && (
                 <>
                   <div className="w-px h-5 bg-slate-300 dark:bg-slate-700 mx-2"></div>
-                  <button className="p-1.5 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded transition-colors" title="Download Word" onClick={handleExportWord}><Download className="w-4 h-4" /></button>
+                  <button className="p-1.5 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded transition-colors relative" title="Download DOCX" onClick={handleExportDocx}>
+                    <FileText className="w-4 h-4" />
+                    <span className="absolute -bottom-1 -right-2 text-[8px] font-bold bg-blue-600 text-white px-1 rounded leading-none">DOCX</span>
+                  </button>
+                  <button className="p-1.5 hover:bg-rose-50 dark:hover:bg-rose-900/20 text-rose-600 dark:text-rose-400 rounded transition-colors relative" title="Download PDF" onClick={handleExportPdf}>
+                    <FileText className="w-4 h-4" />
+                    <span className="absolute -bottom-1 -right-1 text-[8px] font-bold bg-rose-600 text-white px-1 rounded leading-none">PDF</span>
+                  </button>
                   <button className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 rounded transition-colors tooltip disabled:opacity-50" title="Simpan ke Bank Soal" onClick={handleSaveToBankSoal} disabled={isSavingToBank}>
                     {isSavingToBank ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                   </button>

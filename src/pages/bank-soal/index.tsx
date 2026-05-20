@@ -24,7 +24,6 @@ export default function BankSoalPage() {
   useEffect(() => {
     const loadBankSoal = async () => {
       try {
-        await vercelService.initSchema();
         const rows = await vercelService.query<BankSoalRow>(
           `SELECT id, question, mapel, kelas, jenis, tingkat, created_at
            FROM bank_soal
