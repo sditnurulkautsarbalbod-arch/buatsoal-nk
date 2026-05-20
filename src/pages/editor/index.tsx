@@ -201,9 +201,7 @@ export default function EditorPage() {
               .join('')}</div>`
           : '';
 
-        const answerHtml = (q.type === 'isian' || q.type === 'uraian')
-          ? `<div><div class="answer-line"></div><div class="answer-line"></div>${q.type === 'uraian' ? '<div class="answer-line"></div><div class="answer-line"></div>' : ''}</div>`
-          : '';
+        const answerHtml = '';
 
         return `<li><p class="question-text">${escapeHtml(q.text || `Soal ${idx + 1}`)}</p>${imageHtml}${optionsHtml}${answerHtml}</li>`;
       }).join('');
@@ -275,7 +273,6 @@ export default function EditorPage() {
     .options-grid.cols-1 { grid-template-columns: 1fr; }
     .option-item { display: flex; gap: 4px; }
     .option-id { font-weight: 700; width: 14px; flex-shrink: 0; }
-    .answer-line { border-bottom: 1px solid #000; min-height: 18px; margin-top: 6px; }
     body > *:last-child { margin-bottom: 0 !important; padding-bottom: 0 !important; }
   </style>
 </head>
@@ -318,7 +315,6 @@ export default function EditorPage() {
     .options-grid.cols-1 { grid-template-columns: 1fr; }
     .option-item { display: flex; gap: 4px; }
     .option-id { font-weight: 700; width: 14px; flex-shrink: 0; }
-    .answer-line { border-bottom: 1px solid #000; min-height: 18px; margin-top: 6px; }
     body > *:last-child { margin-bottom: 0 !important; padding-bottom: 0 !important; }
   </style>
 </head>
