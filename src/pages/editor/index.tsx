@@ -240,7 +240,7 @@ export default function EditorPage() {
     </div>`;
   };
 
-  const buildExportHtml = (title: string) => {
+  const buildDocxExportHtml = (title: string) => {
     const bodyHtml = buildExportBodyHtml();
     return `<!doctype html>
 <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
@@ -283,9 +283,52 @@ export default function EditorPage() {
 </html>`;
   };
 
+  const buildPdfExportHtml = (title: string) => {
+    const bodyHtml = buildExportBodyHtml();
+    return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>${escapeHtml(title)}</title>
+  <style>
+    @page { size: A4; margin: 12mm; }
+    html, body { margin: 0; padding: 0; background: #fff; color: #000; font-family: "Times New Roman", serif; font-size: 11pt; line-height: 1.15; }
+    * { box-sizing: border-box; }
+    .export-root { width: 100%; max-width: none; margin: 0; padding: 0; }
+    .doc-header-title { text-align: center; margin-bottom: 20px; }
+    .foundation { font-weight: 700; text-transform: uppercase; margin: 0 0 4px 0; }
+    .school-name { font-weight: 700; text-transform: uppercase; font-size: 15pt; margin: 0 0 4px 0; }
+    .divider { border-bottom: 2px solid #000; margin-top: 10px; }
+    .exam-title { text-align: center; margin-bottom: 18px; }
+    .exam-title h3 { font-size: 13pt; margin: 0 0 4px 0; text-transform: uppercase; }
+    .exam-title p { margin: 0; font-weight: 700; text-transform: uppercase; }
+    .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 18px; }
+    .meta-label { display: inline-block; width: 32mm; }
+    .meta-label.short { width: 20mm; }
+    .group-section { margin-bottom: 16px; page-break-inside: avoid; break-inside: avoid; }
+    .section-title { font-weight: 700; margin: 0 0 8px 0; text-transform: uppercase; page-break-after: avoid; break-after: avoid; }
+    .section-instruction { margin: 0 0 10px 0; font-weight: 700; }
+    ol { margin: 0; padding-left: 22px; }
+    li { margin-bottom: 10px; page-break-inside: avoid; break-inside: avoid; }
+    .question-text { margin: 0 0 6px 0; white-space: pre-wrap; text-align: justify; }
+    img { max-width: 100%; height: auto; page-break-inside: avoid; break-inside: avoid; }
+    .options-grid { display: grid; gap: 6px; margin: 0 0 6px 0; }
+    .options-grid.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .options-grid.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .options-grid.cols-1 { grid-template-columns: 1fr; }
+    .option-item { display: flex; gap: 4px; }
+    .option-id { font-weight: 700; width: 14px; flex-shrink: 0; }
+    .answer-line { border-bottom: 1px solid #000; min-height: 18px; margin-top: 6px; }
+    body > *:last-child { margin-bottom: 0 !important; padding-bottom: 0 !important; }
+  </style>
+</head>
+<body>${bodyHtml}</body>
+</html>`;
+  };
+
   const handleExportDocx = () => {
     const title = header.judulUjian || 'Dokumen Soal';
-    const html = buildExportHtml(title);
+    const html = buildDocxExportHtml(title);
     if (!html) {
       toast.error('Konten dokumen belum tersedia.');
       return;
@@ -306,7 +349,7 @@ export default function EditorPage() {
 
   const handleExportPdf = () => {
     const title = header.judulUjian || 'Dokumen Soal';
-    const html = buildExportHtml(title);
+    const html = buildPdfExportHtml(title);
     if (!html) {
       toast.error('Konten dokumen belum tersedia.');
       return;
