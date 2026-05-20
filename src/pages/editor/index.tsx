@@ -4,7 +4,7 @@ import { useDraftStore } from '@/store/useDraftStore';
 import { useAdminStore } from '@/store/useAdminStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useSearchParams } from 'react-router-dom';
-import { Sparkles, Check, MoreVertical, Image as ImageIcon, ChevronDown, Plus, Minus, Maximize2, Minimize2, Trash2, ListTodo, AlignLeft, FileText, FileCheck2, Table, Upload, Trello, Menu, Activity, Bell, Search, Download, FileDown, X, Settings, Save, Loader2 } from 'lucide-react';
+import { Sparkles, Check, MoreVertical, Image as ImageIcon, ChevronDown, Maximize2, Minimize2, Trash2, ListTodo, AlignLeft, FileText, Download, FileDown, X, Save, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/Button';
 import { AIGeneratorModal } from '@/components/AIGeneratorModal';
@@ -12,7 +12,7 @@ import { vercelService } from '@/services/vercelService';
 import { downloadQuestionsAsDocx } from '@/services/docxExportService';
 
 export default function EditorPage() {
-  const { header, setHeaderField, questions, addQuestion, updateQuestion, updateOption, deleteQuestion, pdfSettings, setPdfSetting } = useEditorStore();
+  const { header, setHeaderField, questions, addQuestion, updateQuestion, updateOption, deleteQuestion } = useEditorStore();
   const { drafts, saveDraft } = useDraftStore();
   const { options } = useAdminStore();
   const { user } = useAuthStore();
@@ -32,9 +32,7 @@ export default function EditorPage() {
     }
   }, [draftId, defaultLogos, defaultSchoolInfo]);
 
-  const [zoom, setZoom] = useState(100);
   const [isAIModalOpen, setIsAIModalOpen] = useState(false);
-  const [isPdfSettingsOpen, setIsPdfSettingsOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingToBank, setIsSavingToBank] = useState(false);
@@ -63,13 +61,19 @@ export default function EditorPage() {
     items: questions.filter((q) => q.type === type),
   }));
 
-  const isLandscape = pdfSettings.orientation === 'Landscape';
-  const paperWidthObj = { 'A4': 210, 'F4': 210 };
-  const paperHeightObj = { 'A4': 297, 'F4': 330 };
-  const wBase = paperWidthObj[pdfSettings.paperSize as keyof typeof paperWidthObj] || 210;
-  const hBase = paperHeightObj[pdfSettings.paperSize as keyof typeof paperHeightObj] || 297;
-  const docWidth = isLandscape ? hBase : wBase;
-  const docHeight = isLandscape ? wBase : hBase;
+  const docWidth = 210;
+  const docHeight = 297;
+  const previewMarginCm = 1.5;
+  const fixedPdfSettings = {
+    paperSize: 'F4',
+    orientation: 'Portrait',
+    marginTop: '1.5',
+    marginRight: '1.5',
+    marginBottom: '1.5',
+    marginLeft: '1.5',
+    fontFamily: 'Times New Roman',
+    fontSize: '11 pt',
+  } as const;
 
   useEffect(() => {
     if (draftId) {
@@ -190,7 +194,7 @@ export default function EditorPage() {
       await downloadQuestionsAsDocx({
         header,
         questions,
-        pdfSettings,
+        pdfSettings: fixedPdfSettings,
       });
       toast.success('File DOCX berhasil diunduh.', { id: toastId });
     } catch (err: any) {
@@ -215,8 +219,8 @@ export default function EditorPage() {
         {`
           @media print {
             @page {
-              size: ${pdfSettings.paperSize} ${isLandscape ? 'landscape' : 'portrait'};
-              margin: 0;
+              size: auto;
+              margin: ${previewMarginCm}cm;
             }
             .preview-scroll {
               overflow: visible !important;
@@ -579,17 +583,12 @@ export default function EditorPage() {
           {/* Zoom Toolbar */}
           <div className={`h-14 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 shadow-sm z-10 print:hidden shrink-0 transition-colors ${isFullscreen ? 'sticky top-0' : ''}`}>
             <div className="flex items-center gap-3">
-              <button className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 rounded transition-colors" onClick={() => setZoom(Math.max(50, zoom - 10))}><Minus className="w-4 h-4" /></button>
-              <span className="text-xs font-bold text-slate-700 dark:text-slate-200 w-12 text-center select-none">{zoom}%</span>
-              <button className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 rounded transition-colors" onClick={() => setZoom(Math.min(200, zoom + 10))}><Plus className="w-4 h-4" /></button>
-              <div className="w-px h-5 bg-slate-300 dark:bg-slate-700 mx-2"></div>
               <button className={`p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors ${isFullscreen ? 'text-blue-600 bg-blue-50 dark:bg-blue-900/20' : 'text-slate-600 dark:text-slate-400'}`} onClick={() => setIsFullscreen(!isFullscreen)} title={isFullscreen ? "Keluar Layar Penuh" : "Mode Layar Penuh"}>
                 {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
               </button>
               {!isFullscreen && (
                 <>
                   <div className="w-px h-5 bg-slate-300 dark:bg-slate-700 mx-2"></div>
-                  <button className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 rounded transition-colors tooltip" title="Pengaturan DOCX" onClick={() => setIsPdfSettingsOpen(true)}><Settings className="w-4 h-4" /></button>
                   <button className="p-1.5 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 rounded transition-colors tooltip" title="Unduh PDF" onClick={handleDownloadPdf}><FileDown className="w-4 h-4" /></button>
                   <button className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 rounded transition-colors tooltip" title="Unduh DOCX" onClick={handleDownloadDocx}><Download className="w-4 h-4" /></button>
                   <button
@@ -617,35 +616,34 @@ export default function EditorPage() {
                 style={{
                   width: `${docWidth}mm`,
                   minHeight: `${docHeight}mm`,
-                  zoom: zoom / 100,
                   position: 'relative',
                   overflow: 'visible'
                 }}
              >
                 {/* Visual Margins (Dotted lines simulation) */}
-                <div className="absolute inset-x-0 border-t border-dashed border-slate-300 pointer-events-none print:hidden flex justify-start pl-8" style={{ top: `${parseFloat(pdfSettings.marginTop) || 1.5}cm` }}>
-                   <span className="bg-slate-50 text-[10px] px-1.5 py-0.5 -translate-y-1/2 text-slate-500 absolute font-medium rounded border border-slate-200">{parseFloat(pdfSettings.marginTop) || 1.5} cm</span>
+                <div className="absolute inset-x-0 border-t border-dashed border-slate-300 pointer-events-none print:hidden flex justify-start pl-8" style={{ top: `${previewMarginCm}cm` }}>
+                   <span className="bg-slate-50 text-[10px] px-1.5 py-0.5 -translate-y-1/2 text-slate-500 absolute font-medium rounded border border-slate-200">{previewMarginCm} cm</span>
                 </div>
-                <div className="absolute inset-x-0 border-b border-dashed border-slate-300 pointer-events-none print:hidden flex justify-start pl-8" style={{ bottom: `${parseFloat(pdfSettings.marginBottom) || 1.5}cm` }}>
-                   <span className="bg-slate-50 text-[10px] px-1.5 py-0.5 translate-y-1/2 text-slate-500 absolute font-medium rounded border border-slate-200">{parseFloat(pdfSettings.marginBottom) || 1.5} cm</span>
+                <div className="absolute inset-x-0 border-b border-dashed border-slate-300 pointer-events-none print:hidden flex justify-start pl-8" style={{ bottom: `${previewMarginCm}cm` }}>
+                   <span className="bg-slate-50 text-[10px] px-1.5 py-0.5 translate-y-1/2 text-slate-500 absolute font-medium rounded border border-slate-200">{previewMarginCm} cm</span>
                 </div>
-                <div className="absolute inset-y-0 border-l border-dashed border-slate-300 pointer-events-none print:hidden flex items-center" style={{ left: `${parseFloat(pdfSettings.marginLeft) || 1.5}cm` }}>
-                   <span className="bg-slate-50 text-[10px] px-1.5 py-0.5 -translate-x-1/2 text-slate-500 font-medium rounded border border-slate-200 absolute rotate-[-90deg] whitespace-nowrap">{parseFloat(pdfSettings.marginLeft) || 1.5} cm</span>
+                <div className="absolute inset-y-0 border-l border-dashed border-slate-300 pointer-events-none print:hidden flex items-center" style={{ left: `${previewMarginCm}cm` }}>
+                   <span className="bg-slate-50 text-[10px] px-1.5 py-0.5 -translate-x-1/2 text-slate-500 font-medium rounded border border-slate-200 absolute rotate-[-90deg] whitespace-nowrap">{previewMarginCm} cm</span>
                 </div>
-                <div className="absolute inset-y-0 border-r border-dashed border-slate-300 pointer-events-none print:hidden flex items-center justify-end" style={{ right: `${parseFloat(pdfSettings.marginRight) || 1.5}cm` }}>
-                   <span className="bg-slate-50 text-[10px] px-1.5 py-0.5 translate-x-1/2 text-slate-500 font-medium rounded border border-slate-200 absolute rotate-90 whitespace-nowrap">{parseFloat(pdfSettings.marginRight) || 1.5} cm</span>
+                <div className="absolute inset-y-0 border-r border-dashed border-slate-300 pointer-events-none print:hidden flex items-center justify-end" style={{ right: `${previewMarginCm}cm` }}>
+                   <span className="bg-slate-50 text-[10px] px-1.5 py-0.5 translate-x-1/2 text-slate-500 font-medium rounded border border-slate-200 absolute rotate-90 whitespace-nowrap">{previewMarginCm} cm</span>
                 </div>
 
                 {/* Actual Printed Content Area */}
                 <div
                    className="w-full text-black"
                    style={{
-                      paddingTop: `${parseFloat(pdfSettings.marginTop) || 1.5}cm`,
-                      paddingBottom: `${parseFloat(pdfSettings.marginBottom) || 1.5}cm`,
-                      paddingLeft: `${parseFloat(pdfSettings.marginLeft) || 1.5}cm`,
-                      paddingRight: `${parseFloat(pdfSettings.marginRight) || 1.5}cm`,
-                      fontFamily: pdfSettings.fontFamily === 'Times New Roman' ? '"Times New Roman", Times, serif' : 'Arial, sans-serif',
-                      fontSize: pdfSettings.fontSize === '12 pt' ? '12pt' : '11pt',
+                      paddingTop: `${previewMarginCm}cm`,
+                      paddingBottom: `${previewMarginCm}cm`,
+                      paddingLeft: `${previewMarginCm}cm`,
+                      paddingRight: `${previewMarginCm}cm`,
+                      fontFamily: '"Times New Roman", Times, serif',
+                      fontSize: '11pt',
                       boxSizing: 'border-box'
                    }}
                 >
@@ -754,133 +752,6 @@ export default function EditorPage() {
           </div>
              
              
-          {/* PDF Settings Floating Modal */}
-             {isPdfSettingsOpen && (
-             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm print:hidden">
-               <div className="bg-white rounded-2xl shadow-2xl w-full max-w-[420px] overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
-                  <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                     <h3 className="font-bold text-slate-800 text-[16px]">Pengaturan DOCX</h3>
-                     <button onClick={() => setIsPdfSettingsOpen(false)} className="p-1 hover:bg-slate-200 rounded-full text-slate-500 transition-colors">
-                        <X className="w-5 h-5" />
-                     </button>
-                  </div>
-                  
-                  <div className="p-5 space-y-6 overflow-y-auto no-scrollbar flex-1">
-                     
-                     {/* Ukuran Kertas */}
-                     <div className="space-y-1.5">
-                        <label className="text-[13px] font-medium text-slate-700">Ukuran Kertas</label>
-                        <div className="relative">
-                           <select 
-                             className="w-full appearance-none text-[13px] p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all shadow-sm"
-                             value={pdfSettings.paperSize}
-                             onChange={(e) => setPdfSetting('paperSize', e.target.value)}
-                           >
-                              <option value="F4">F4 (21,0 x 33,0 cm)</option>
-                              <option value="A4">A4 (21,0 x 29,7 cm)</option>
-                           </select>
-                           <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                        </div>
-                     </div>
-                     
-                     {/* Orientasi */}
-                     <div className="space-y-1.5">
-                        <label className="text-[13px] font-medium text-slate-700">Orientasi</label>
-                        <div className="relative">
-                           <select 
-                             className="w-full appearance-none text-[13px] p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all shadow-sm"
-                             value={pdfSettings.orientation}
-                             onChange={(e) => setPdfSetting('orientation', e.target.value)}
-                           >
-                              <option value="Portrait">Portrait</option>
-                              <option value="Landscape">Landscape</option>
-                           </select>
-                           <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                        </div>
-                     </div>
-
-                     {/* Margin */}
-                     <div>
-                        <label className="text-[13px] font-medium text-slate-700 mb-2 block">Margin</label>
-                        <div className="grid grid-cols-2 gap-3 mb-4">
-                           <div className="space-y-1">
-                              <span className="text-[11px] text-slate-500 font-medium">Atas</span>
-                              <div className="relative">
-                                 <input type="text" className="w-full text-[13px] p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 shadow-sm focus:outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all" value={pdfSettings.marginTop} onChange={(e) => setPdfSetting('marginTop', e.target.value)} />
-                                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[13px] text-slate-400 bg-transparent pointer-events-none">cm</span>
-                              </div>
-                           </div>
-                           <div className="space-y-1">
-                              <span className="text-[11px] text-slate-500 font-medium">Bawah</span>
-                              <div className="relative">
-                                 <input type="text" className="w-full text-[13px] p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 shadow-sm focus:outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all" value={pdfSettings.marginBottom} onChange={(e) => setPdfSetting('marginBottom', e.target.value)} />
-                                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[13px] text-slate-400 bg-transparent pointer-events-none">cm</span>
-                              </div>
-                           </div>
-                           <div className="space-y-1">
-                              <span className="text-[11px] text-slate-500 font-medium">Kiri</span>
-                              <div className="relative">
-                                 <input type="text" className="w-full text-[13px] p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 shadow-sm focus:outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all" value={pdfSettings.marginLeft} onChange={(e) => setPdfSetting('marginLeft', e.target.value)} />
-                                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[13px] text-slate-400 bg-transparent pointer-events-none">cm</span>
-                              </div>
-                           </div>
-                           <div className="space-y-1">
-                              <span className="text-[11px] text-slate-500 font-medium">Kanan</span>
-                              <div className="relative">
-                                 <input type="text" className="w-full text-[13px] p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 shadow-sm focus:outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all" value={pdfSettings.marginRight} onChange={(e) => setPdfSetting('marginRight', e.target.value)} />
-                                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[13px] text-slate-400 bg-transparent pointer-events-none">cm</span>
-                              </div>
-                           </div>
-                        </div>
-                        <div className="flex items-center gap-2 text-emerald-600 text-[13px] bg-emerald-50 p-2 rounded-lg border border-emerald-100/50">
-                           <Check className="w-4 h-4" /> <span className="font-medium">Semua margin 1.5 cm</span>
-                        </div>
-                     </div>
-
-                     {/* Font */}
-                     <div className="space-y-4">
-                        <div>
-                           <label className="text-[13px] font-medium text-slate-700 mb-1.5 block">Font</label>
-                           <div className="relative">
-                              <select 
-                                className="w-full appearance-none text-[13px] p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all shadow-sm"
-                                value={pdfSettings.fontFamily}
-                                onChange={(e) => setPdfSetting('fontFamily', e.target.value)}
-                              >
-                                 <option value="Times New Roman">Times New Roman</option>
-                                 <option value="Arial">Arial</option>
-                              </select>
-                              <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                           </div>
-                        </div>
-                        
-                        <div>
-                           <label className="text-[13px] font-medium text-slate-700 mb-1.5 block">Ukuran Font</label>
-                           <div className="relative">
-                              <select 
-                                className="w-full appearance-none text-[13px] p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 transition-all shadow-sm"
-                                value={pdfSettings.fontSize}
-                                onChange={(e) => setPdfSetting('fontSize', e.target.value)}
-                              >
-                                 <option value="12 pt">12 pt</option>
-                                 <option value="11 pt">11 pt</option>
-                              </select>
-                              <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                           </div>
-                        </div>
-                     </div>
-                     
-                  </div>
-
-                  <div className="px-5 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
-                     <p className="text-[13px] font-medium text-slate-500">Preview dokumen memanjang</p>
-                     <Button onClick={() => setIsPdfSettingsOpen(false)} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium text-sm transition-colors shadow-sm gap-2">
-                        <Check className="w-4 h-4" /> Simpan
-                     </Button>
-                  </div>
-               </div>
-             </div>
-             )}
 
           </div>
         </div>
