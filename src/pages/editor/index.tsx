@@ -218,6 +218,17 @@ export default function EditorPage() {
               size: ${pdfSettings.paperSize} ${isLandscape ? 'landscape' : 'portrait'};
               margin: 0;
             }
+            .preview-scroll {
+              overflow: visible !important;
+              height: auto !important;
+            }
+            .preview-paper {
+              transform: none !important;
+              zoom: 1 !important;
+              height: auto !important;
+              min-height: auto !important;
+              box-shadow: none !important;
+            }
             .doc-header,
             .section-block,
             .section-heading,
@@ -596,20 +607,17 @@ export default function EditorPage() {
             </div>
 
           <div
-             className="flex-1 overflow-y-auto w-full p-4 md:p-8 flex flex-col items-center justify-start print:p-0 no-scrollbar gap-0 relative"
+             className="preview-scroll flex-1 overflow-y-auto w-full p-4 md:p-8 flex flex-col items-center justify-start print:p-0 no-scrollbar gap-0 relative"
           >
 
              {/* Document Container - continuous page */}
              <div
                 ref={previewPaperRef}
-                className={`bg-white shadow-xl relative print:shadow-none print:m-0 print:block mx-auto ${isFullscreen ? 'scale-100' : ''}`}
+                className={`preview-paper bg-white shadow-xl relative print:shadow-none print:m-0 print:block mx-auto ${isFullscreen ? 'scale-100' : ''}`}
                 style={{
                   width: `${docWidth}mm`,
                   minHeight: `${docHeight}mm`,
-                  height: 'fit-content',
-                  display: 'inline-block',
-                  transform: `scale(${zoom / 100})`,
-                  transformOrigin: 'top center',
+                  zoom: zoom / 100,
                   position: 'relative',
                   overflow: 'visible'
                 }}
