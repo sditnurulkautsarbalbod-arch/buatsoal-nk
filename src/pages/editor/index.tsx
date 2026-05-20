@@ -171,54 +171,121 @@ export default function EditorPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const inlineComputedStyles = (source: HTMLElement, target: HTMLElement) => {
-    const computed = window.getComputedStyle(source);
-    const cssText = Array.from(computed).map((prop) => `${prop}:${computed.getPropertyValue(prop)};`).join('');
-    target.style.cssText = cssText;
+  const escapeHtml = (value: string) =>
+    String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
 
-    const sourceChildren = Array.from(source.children) as HTMLElement[];
-    const targetChildren = Array.from(target.children) as HTMLElement[];
-    for (let i = 0; i < sourceChildren.length; i += 1) {
-      const srcChild = sourceChildren[i];
-      const dstChild = targetChildren[i];
-      if (srcChild && dstChild) {
-        inlineComputedStyles(srcChild, dstChild);
-      }
-    }
+  const buildExportBodyHtml = () => {
+    const renderGroups = groupsByType.map(({ type, items: group }) => {
+      if (!group.length) return '';
+
+      const questionsHtml = group.map((q, idx) => {
+        const options = q.options || [];
+        const maxOptionLength = Math.max(...options.map((o: any) => String(o.text || '').length), 0);
+        const isTwoColumns = maxOptionLength >= 20 && maxOptionLength < 45;
+        const reorderedOptions = isTwoColumns
+          ? ['A', 'C', 'B', 'D'].map((id) => options.find((opt: any) => opt.id === id)).filter(Boolean) as Array<{ id: string; text: string }>
+          : options;
+
+        const imageHtml = q.imageUrl
+          ? `<img src="${escapeHtml(String(q.imageUrl))}" alt="Lampiran" style="${q.imageWidth ? `width:${q.imageWidth}cm;` : ''}${q.imageHeight ? `height:${q.imageHeight}cm;` : ''}max-width:100%;object-fit:contain;border:1px solid #e2e8f0;padding:2px;border-radius:2px;margin:8px 0 12px 0;" />`
+          : '';
+
+        const optionsHtml = q.type === 'pg' && reorderedOptions.length > 0
+          ? `<div class="options-grid ${maxOptionLength < 20 ? 'cols-4' : isTwoColumns ? 'cols-2' : 'cols-1'}">${reorderedOptions
+              .map((opt: any) => `<div class="option-item"><span class="option-id">${escapeHtml(opt.id)}.</span><span>${escapeHtml(opt.text || '-')}</span></div>`)
+              .join('')}</div>`
+          : '';
+
+        const answerHtml = (q.type === 'isian' || q.type === 'uraian')
+          ? `<div><div class="answer-line"></div><div class="answer-line"></div>${q.type === 'uraian' ? '<div class="answer-line"></div><div class="answer-line"></div>' : ''}</div>`
+          : '';
+
+        return `<li><p class="question-text">${escapeHtml(q.text || `Soal ${idx + 1}`)}</p>${imageHtml}${optionsHtml}${answerHtml}</li>`;
+      }).join('');
+
+      return `<section class="group-section"><p class="section-title">${escapeHtml(typeLabels[type])}</p><p class="section-instruction">${escapeHtml(typeInstructions[type])}</p><ol>${questionsHtml}</ol></section>`;
+    }).join('');
+
+    return `<div id="module-content" class="export-root">
+      <div class="doc-header-title">
+        ${header.foundationName ? `<p class="foundation">${escapeHtml(header.foundationName)}</p>` : ''}
+        <h2 class="school-name">${escapeHtml(header.schoolName || 'NAMA SEKOLAH')}</h2>
+        ${header.schoolAddress ? `<p>${escapeHtml(header.schoolAddress)}</p>` : ''}
+        ${header.schoolContact ? `<p>${escapeHtml(header.schoolContact)}</p>` : ''}
+        <div class="divider"></div>
+      </div>
+
+      <div class="exam-title">
+        <h3>${escapeHtml(header.judulUjian || 'JUDUL UJIAN')}</h3>
+        <p>TAHUN AJARAN ${escapeHtml(header.tahunAjaran || '-')}</p>
+      </div>
+
+      <div class="meta-grid">
+        <div>
+          <p><span class="meta-label">Mata Pelajaran</span>: ${escapeHtml(header.mataPelajaran || '-')}</p>
+          <p><span class="meta-label">Kelas</span>: ${escapeHtml(header.kelas || '-')}</p>
+        </div>
+        <div>
+          <p><span class="meta-label short">Nama</span>: _____________________</p>
+          <p><span class="meta-label short">Waktu</span>: ${escapeHtml(header.waktu || '-')}</p>
+        </div>
+      </div>
+
+      ${renderGroups}
+    </div>`;
   };
 
-  const buildExportHtmlFromPreview = (title: string) => {
-    const source = document.getElementById('module-content') as HTMLElement | null;
-    if (!source) return '';
-
-    const clone = source.cloneNode(true) as HTMLElement;
-    inlineComputedStyles(source, clone);
-
+  const buildExportHtml = (title: string) => {
+    const bodyHtml = buildExportBodyHtml();
     return `<!doctype html>
 <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
 <head>
   <meta charset="utf-8" />
-  <title>${title}</title>
+  <title>${escapeHtml(title)}</title>
   <style>
     @page { size: A4; margin: 12mm; }
-    html, body { margin: 0; padding: 0; background: #fff; }
+    html, body { margin: 0; padding: 0; background: #fff; color: #000; font-family: "Times New Roman", serif; font-size: 11pt; line-height: 1.15; }
     * { box-sizing: border-box; }
+    .export-root { width: 100%; max-width: none; margin: 0; padding: 0; }
+    .doc-header-title { text-align: center; margin-bottom: 20px; }
+    .foundation { font-weight: 700; text-transform: uppercase; margin: 0 0 4px 0; }
+    .school-name { font-weight: 700; text-transform: uppercase; font-size: 15pt; margin: 0 0 4px 0; }
+    .divider { border-bottom: 2px solid #000; margin-top: 10px; }
+    .exam-title { text-align: center; margin-bottom: 18px; }
+    .exam-title h3 { font-size: 13pt; margin: 0 0 4px 0; text-transform: uppercase; }
+    .exam-title p { margin: 0; font-weight: 700; text-transform: uppercase; }
+    .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 18px; }
+    .meta-label { display: inline-block; width: 32mm; }
+    .meta-label.short { width: 20mm; }
+    .group-section { margin-bottom: 16px; page-break-inside: avoid; break-inside: avoid; }
+    .section-title { font-weight: 700; margin: 0 0 8px 0; text-transform: uppercase; page-break-after: avoid; break-after: avoid; }
+    .section-instruction { margin: 0 0 10px 0; font-weight: 700; }
+    ol { margin: 0; padding-left: 22px; }
+    li { margin-bottom: 10px; page-break-inside: avoid; break-inside: avoid; }
+    .question-text { margin: 0 0 6px 0; white-space: pre-wrap; text-align: justify; }
     img { max-width: 100%; height: auto; page-break-inside: avoid; break-inside: avoid; }
-    table, tr, td, p, li, h1, h2, h3, h4 { page-break-inside: avoid; break-inside: avoid; }
-    ul, ol { margin: 0 0 8px 0; }
-    .section-title { page-break-after: avoid; break-after: avoid; }
+    .options-grid { display: grid; gap: 6px; margin: 0 0 6px 0; }
+    .options-grid.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .options-grid.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .options-grid.cols-1 { grid-template-columns: 1fr; }
+    .option-item { display: flex; gap: 4px; }
+    .option-id { font-weight: 700; width: 14px; flex-shrink: 0; }
     .answer-line { border-bottom: 1px solid #000; min-height: 18px; margin-top: 6px; }
-    .page-break:last-child { break-before: auto; page-break-before: auto; }
     body > *:last-child { margin-bottom: 0 !important; padding-bottom: 0 !important; }
   </style>
 </head>
-<body>${clone.outerHTML}</body>
+<body>${bodyHtml}</body>
 </html>`;
   };
 
   const handleExportDocx = () => {
     const title = header.judulUjian || 'Dokumen Soal';
-    const html = buildExportHtmlFromPreview(title);
+    const html = buildExportHtml(title);
     if (!html) {
       toast.error('Konten dokumen belum tersedia.');
       return;
@@ -239,7 +306,7 @@ export default function EditorPage() {
 
   const handleExportPdf = () => {
     const title = header.judulUjian || 'Dokumen Soal';
-    const html = buildExportHtmlFromPreview(title);
+    const html = buildExportHtml(title);
     if (!html) {
       toast.error('Konten dokumen belum tersedia.');
       return;
