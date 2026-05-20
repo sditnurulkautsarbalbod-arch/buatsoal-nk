@@ -33,27 +33,14 @@ export interface EditorHeaderState {
   waktu: string;
 }
 
-export interface PdfSettings {
-  paperSize: string;
-  orientation: string;
-  marginTop: string;
-  marginBottom: string;
-  marginLeft: string;
-  marginRight: string;
-  fontFamily: string;
-  fontSize: string;
-}
-
 interface EditorState {
   header: EditorHeaderState;
   questions: Question[];
-  pdfSettings: PdfSettings;
   setHeaderField: (field: keyof EditorHeaderState, value: string) => void;
   addQuestion: (type: Question['type'], data?: Partial<Question>) => void;
   updateQuestion: (id: string, updates: Partial<Question>) => void;
   deleteQuestion: (id: string) => void;
   updateOption: (questionId: string, optionIndex: number, text: string) => void;
-  setPdfSetting: (field: keyof PdfSettings, value: string) => void;
 }
 
 export const useEditorStore = create<EditorState>((set) => ({
@@ -72,16 +59,6 @@ export const useEditorStore = create<EditorState>((set) => ({
     waktu: ''
   },
   questions: [],
-  pdfSettings: {
-    paperSize: 'F4', // F4 (21.0 x 33.0 cm)
-    orientation: 'Portrait',
-    marginTop: '1.5 cm',
-    marginBottom: '1.5 cm',
-    marginLeft: '1.5 cm',
-    marginRight: '1.5 cm',
-    fontFamily: 'Times New Roman',
-    fontSize: '12 pt'
-  },
   setHeaderField: (field, value) => set((state) => ({
     header: { ...state.header, [field]: value }
   })),
@@ -114,8 +91,5 @@ export const useEditorStore = create<EditorState>((set) => ({
   })),
   deleteQuestion: (id) => set((state) => ({
     questions: state.questions.filter(q => q.id !== id)
-  })),
-  setPdfSetting: (field, value) => set((state) => ({
-    pdfSettings: { ...state.pdfSettings, [field]: value }
   }))
 }));
