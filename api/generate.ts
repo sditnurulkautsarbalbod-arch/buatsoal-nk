@@ -1,5 +1,32 @@
 import { GoogleGenAI } from '@google/genai';
 
+async function callGas(action: string, data: any) {
+  const gasUrl = process.env.GAS_WEB_APP_URL || process.env.VITE_GAS_API_URL;
+  if (!gasUrl) {
+    throw new Error('GAS_WEB_APP_URL tidak ditemukan di environment.');
+  }
+
+  const response = await fetch(gasUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, data }),
+  });
+
+  const text = await response.text();
+  let json: any = {};
+  try {
+    json = text ? JSON.parse(text) : {};
+  } catch {
+    json = { error: `Respons GAS bukan JSON valid: ${text?.slice?.(0, 200) || ''}` };
+  }
+
+  if (!response.ok) {
+    throw new Error(json?.error || `HTTP ${response.status}`);
+  }
+
+  return json;
+}
+
 export default async function handler(req: any, res: any) {
   if (req.method === 'OPTIONS') {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -14,14 +41,32 @@ export default async function handler(req: any, res: any) {
 
   try {
     const { prompt, apiKey: clientApiKey } = req.body || {};
-    const apiKey = clientApiKey || process.env.GEMINI_API_KEY;
-
-    if (!apiKey) {
-      return res.status(400).json({ error: 'GEMINI_API_KEY tidak ditemukan.' });
-    }
 
     if (!prompt || typeof prompt !== 'string') {
       return res.status(400).json({ error: 'Prompt wajib berupa teks.' });
+    }
+
+    const gasEnabled = process.env.GAS_ENABLE_GENERATE !== 'false';
+    if (gasEnabled) {
+      try {
+        const gasResult = await callGas('generateText', {
+          prompt,
+          apiKey: clientApiKey || '',
+        });
+
+        if (!gasResult?.text || typeof gasResult.text !== 'string' || !gasResult.text.trim()) {
+          throw new Error(gasResult?.error || 'GAS tidak mengembalikan teks.');
+        }
+
+        return res.status(200).json({ text: gasResult.text });
+      } catch (gasError: any) {
+        console.error('GAS generate failed, fallback to direct Gemini:', gasError?.message);
+      }
+    }
+
+    const apiKey = clientApiKey || process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      return res.status(400).json({ error: 'GEMINI_API_KEY tidak ditemukan.' });
     }
 
     const ai = new GoogleGenAI({

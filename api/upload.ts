@@ -1,5 +1,3 @@
-import { put } from '@vercel/blob';
-
 const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
 
 async function readRawBody(req: any): Promise<string> {
@@ -30,6 +28,33 @@ async function getPayload(req: any): Promise<any> {
   }
 }
 
+async function callGas(action: string, data: any) {
+  const gasUrl = process.env.GAS_WEB_APP_URL || process.env.VITE_GAS_API_URL;
+  if (!gasUrl) {
+    throw new Error('GAS_WEB_APP_URL tidak ditemukan di environment.');
+  }
+
+  const response = await fetch(gasUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, data }),
+  });
+
+  const text = await response.text();
+  let json: any = {};
+  try {
+    json = text ? JSON.parse(text) : {};
+  } catch {
+    json = { error: `Respons GAS bukan JSON valid: ${text?.slice?.(0, 200) || ''}` };
+  }
+
+  if (!response.ok) {
+    throw new Error(json?.error || `HTTP ${response.status}`);
+  }
+
+  return json;
+}
+
 export default async function handler(req: any, res: any) {
   try {
     if (req.method === 'OPTIONS') {
@@ -41,11 +66,6 @@ export default async function handler(req: any, res: any) {
 
     if (req.method !== 'POST') {
       return res.status(405).json({ error: `Method not allowed: ${req.method}` });
-    }
-
-    const token = process.env.BLOB_READ_WRITE_TOKEN;
-    if (!token) {
-      return res.status(500).json({ error: 'BLOB_READ_WRITE_TOKEN tidak ditemukan di environment Vercel.' });
     }
 
     const payload = await getPayload(req);
@@ -76,16 +96,22 @@ export default async function handler(req: any, res: any) {
       });
     }
 
-    const blob = await put(safeFilename, binary, {
-      access: 'public',
-      token,
+    const result = await callGas('uploadFile', {
+      filename: safeFilename,
+      content: base64Payload,
       contentType: contentType || 'application/octet-stream',
-      addRandomSuffix: true,
     });
 
-    return res.status(200).json({ url: blob.url, pathname: blob.pathname });
+    if (!result?.url) {
+      return res.status(500).json({ error: result?.error || 'GAS tidak mengembalikan URL file.' });
+    }
+
+    return res.status(200).json({
+      url: result.url,
+      pathname: result.pathname || safeFilename,
+    });
   } catch (err: any) {
-    console.error('UPLOAD ERROR:', {
+    console.error('UPLOAD ADAPTER ERROR:', {
       message: err?.message,
       name: err?.name,
       statusCode: err?.statusCode,
@@ -94,7 +120,7 @@ export default async function handler(req: any, res: any) {
     });
 
     return res.status(500).json({
-      error: err?.message || 'Gagal mengunggah file ke Blob.',
+      error: err?.message || 'Gagal mengunggah file ke Google Drive.',
     });
   }
 }
