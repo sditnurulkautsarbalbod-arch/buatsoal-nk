@@ -42,7 +42,13 @@ export function AIGeneratorModal({ isOpen, onClose }: AIGeneratorModalProps) {
       setError('Masukkan topik materi!');
       return;
     }
-    
+
+    const normalizedApiKey = (geminiApiKey || '').trim();
+    if (!normalizedApiKey) {
+      setError('MISSING_API_KEY');
+      return;
+    }
+
     const totalQuestions = counts.pg + counts.isian + counts.uraian;
     if (totalQuestions === 0 || isNaN(totalQuestions)) {
       setError('Pilih minimal 1 soal untuk dibuat!');
@@ -51,7 +57,7 @@ export function AIGeneratorModal({ isOpen, onClose }: AIGeneratorModalProps) {
 
     setIsGenerating(true);
     setError('');
-    
+
     try {
       const prompt = `Buatkan ${totalQuestions} soal ${header.mataPelajaran} tingkat ${header.kelas} tentang topik "${topic}". 
       Komposisi jenis soal:
@@ -79,7 +85,7 @@ export function AIGeneratorModal({ isOpen, onClose }: AIGeneratorModalProps) {
       const generateUrl = new URL('/api/generate', window.location.origin).toString();
       const response = await axios.post(generateUrl, {
         prompt,
-        apiKey: geminiApiKey
+        apiKey: normalizedApiKey
       });
       const text = response.data.text || '';
       const generatedQuestions = extractJsonArray(text);
@@ -102,7 +108,11 @@ export function AIGeneratorModal({ isOpen, onClose }: AIGeneratorModalProps) {
       onClose();
     } catch (err: any) {
       console.error(err);
-      setError('Gagal membuat soal. ' + (err.message || ''));
+      const apiMessage = err?.response?.data?.error;
+      const message = typeof apiMessage === 'string' && apiMessage.trim()
+        ? apiMessage
+        : (err?.message || 'Terjadi kesalahan.');
+      setError('Gagal membuat soal. ' + message);
     } finally {
       setIsGenerating(false);
     }
