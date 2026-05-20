@@ -1,11 +1,17 @@
 import {
   AlignmentType,
+  BorderStyle,
   Document,
   HeadingLevel,
   Packer,
   Paragraph,
+  Table,
+  TableCell,
+  TableRow,
   TextRun,
+  WidthType,
   type ISectionOptions,
+  type FileChild,
 } from 'docx';
 import type { EditorHeaderState, PdfSettings, Question } from '@/store/useEditorStore';
 
@@ -51,8 +57,32 @@ function pageSizeTwip(paperSize: string, orientation: string) {
 
 function makeLine() {
   return new Paragraph({
-    children: [new TextRun('____________________________________________________________')],
-    spacing: { after: 120 },
+    children: [new TextRun(' ')],
+    border: {
+      bottom: {
+        style: BorderStyle.SINGLE,
+        color: '000000',
+        size: 6,
+        space: 1,
+      },
+    },
+    spacing: { after: 180 },
+  });
+}
+
+function getOptionById(options: Array<{ id: string; text: string }>, id: string) {
+  return options.find((opt) => String(opt.id || '').toUpperCase() === id);
+}
+
+function makeOptionCell(text: string, fontFamily: string, size: number) {
+  return new TableCell({
+    width: { size: 50, type: WidthType.PERCENTAGE },
+    children: [
+      new Paragraph({
+        children: [new TextRun({ text, font: fontFamily, size })],
+        spacing: { after: 40 },
+      }),
+    ],
   });
 }
 
@@ -69,7 +99,7 @@ function buildParagraphs(payload: ExportPayload) {
   const fontSizeHalfPoint = pdfSettings.fontSize === '11 pt' ? 22 : 24;
   const fontFamily = pdfSettings.fontFamily || 'Times New Roman';
 
-  const lines: Paragraph[] = [];
+  const lines: FileChild[] = [];
 
   if (header.foundationName) {
     lines.push(new Paragraph({
@@ -157,13 +187,49 @@ function buildParagraphs(payload: ExportPayload) {
       }
 
       if (q.type === 'pg' && q.options?.length) {
-        q.options.forEach((opt) => {
-          lines.push(new Paragraph({
-            children: [new TextRun({ text: `${opt.id}. ${opt.text || '-'}`, font: fontFamily, size: fontSizeHalfPoint })],
-            indent: { left: 360 },
-            spacing: { after: 40 },
+        const options = q.options as Array<{ id: string; text: string }>;
+        const maxOptionLength = Math.max(...options.map((opt) => String(opt.text || '').length), 0);
+        const isTwoColumns = maxOptionLength >= 20 && maxOptionLength < 45;
+
+        if (isTwoColumns) {
+          const ordered = ['A', 'C', 'B', 'D']
+            .map((id) => getOptionById(options, id))
+            .filter((opt): opt is { id: string; text: string } => Boolean(opt));
+
+          lines.push(new Table({
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            borders: {
+              top: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+              bottom: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+              left: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+              right: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+              insideHorizontal: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+              insideVertical: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+            },
+            rows: [
+              new TableRow({
+                children: [
+                  makeOptionCell(`${ordered[0]?.id || 'A'}. ${ordered[0]?.text || '-'}`, fontFamily, fontSizeHalfPoint),
+                  makeOptionCell(`${ordered[1]?.id || 'C'}. ${ordered[1]?.text || '-'}`, fontFamily, fontSizeHalfPoint),
+                ],
+              }),
+              new TableRow({
+                children: [
+                  makeOptionCell(`${ordered[2]?.id || 'B'}. ${ordered[2]?.text || '-'}`, fontFamily, fontSizeHalfPoint),
+                  makeOptionCell(`${ordered[3]?.id || 'D'}. ${ordered[3]?.text || '-'}`, fontFamily, fontSizeHalfPoint),
+                ],
+              }),
+            ],
           }));
-        });
+        } else {
+          options.forEach((opt) => {
+            lines.push(new Paragraph({
+              children: [new TextRun({ text: `${opt.id}. ${opt.text || '-'}`, font: fontFamily, size: fontSizeHalfPoint })],
+              indent: { left: 360 },
+              spacing: { after: 40 },
+            }));
+          });
+        }
       }
 
       if (q.type === 'isian' || q.type === 'uraian') {

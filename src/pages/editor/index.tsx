@@ -617,7 +617,6 @@ export default function EditorPage() {
                 <div
                    className="w-full text-black"
                    style={{
-                      minHeight: `${docHeight}mm`,
                       paddingTop: `${parseFloat(pdfSettings.marginTop) || 1.5}cm`,
                       paddingBottom: `${parseFloat(pdfSettings.marginBottom) || 1.5}cm`,
                       paddingLeft: `${parseFloat(pdfSettings.marginLeft) || 1.5}cm`,
@@ -679,8 +678,8 @@ export default function EditorPage() {
                                  style={{ boxSizing: 'border-box' }}
                                >
                                  {group.map((q, questionIndex) => (
-                                   <li key={q.id} data-q-id={q.id} className="pl-2 break-inside-auto question-item" value={questionIndex + 1}>
-                                     <p className="mb-2.5 whitespace-pre-wrap text-justify text-[11pt] leading-[1.35] block" style={{ hyphens: 'auto', overflowWrap: 'anywhere', wordBreak: 'normal', width: '100%', maxWidth: '100%' }}>
+                                   <li key={q.id} data-q-id={q.id} className="pl-2 pr-2 break-inside-auto question-item" value={questionIndex + 1}>
+                                     <p className="mb-2.5 whitespace-pre-wrap text-justify text-[11pt] leading-[1.35] block" style={{ hyphens: 'auto', overflowWrap: 'break-word', wordBreak: 'break-word' }}>
                                        {q.text || `Soal ${questions.indexOf(q) + 1} (${q.type})`}
                                      </p>
                                      {q.imageUrl && <div className="mb-3 mt-3 question-image"><img src={q.imageUrl} alt="Lampiran" style={{ width: q.imageWidth ? `${q.imageWidth}cm` : 'auto', height: q.imageHeight ? `${q.imageHeight}cm` : 'auto' }} className="max-w-full object-contain border border-slate-200 p-1 rounded-sm" /></div>}
