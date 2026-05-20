@@ -171,118 +171,127 @@ export default function EditorPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const buildExportCss = () => `
-    @page {
-      margin: 1.5cm;
-      size: A4;
-    }
-    html, body {
-      margin: 0;
-      padding: 0;
-      height: auto;
-      font-family: 'Times New Roman', serif;
-      font-size: 11pt;
-      line-height: 1.15;
-      color: #000000;
-      background: #ffffff;
-    }
-    #module-content {
-      width: 100% !important;
-      padding: 0 !important;
-      max-width: none !important;
-      margin: 0 !important;
-      font-family: 'Times New Roman', serif !important;
-      font-size: 11pt !important;
-      line-height: 1.15 !important;
-      color: #000000 !important;
-    }
-    .print-content {
-      box-shadow: none !important;
-      border: none !important;
-      margin: 0 !important;
-      padding: 0 !important;
-      min-height: auto !important;
-      overflow: visible !important;
-    }
-    h1, h2, h3, h4, h5, p, li, td, th, span, div { color: #000000; }
-    table { border-collapse: collapse; width: 100%; margin-bottom: 15px; border: 1px solid #000000; }
-    th { border: 1px solid #000000; padding: 8px; font-weight: bold; text-align: left; }
-    td { border: 1px solid #000000; padding: 8px; vertical-align: top; }
-    .section-title { font-weight: bold; margin: 18px 0 10px; text-transform: uppercase; }
-    .doc-header-title { text-align: center; margin-bottom: 18px; }
-    .answer-line { border-bottom: 1px dotted #000000; height: 16px; margin-top: 12px; }
-  `;
+  const inlineComputedStyles = (source: HTMLElement, target: HTMLElement) => {
+    const computed = window.getComputedStyle(source);
+    const cssText = Array.from(computed).map((prop) => `${prop}:${computed.getPropertyValue(prop)};`).join('');
+    target.style.cssText = cssText;
 
-  const buildExportHtml = (title: string, content: string) => {
-    const exportCss = buildExportCss();
-    return `
-      <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-      <head>
-        <meta charset='utf-8'>
-        <title>${title}</title>
-        <style>${exportCss}</style>
-      </head>
-      <body>
-        <div class="print-content">
-          <div id="module-content">${content}</div>
-        </div>
-      </body>
-      </html>
-    `;
+    const sourceChildren = Array.from(source.children) as HTMLElement[];
+    const targetChildren = Array.from(target.children) as HTMLElement[];
+    for (let i = 0; i < sourceChildren.length; i += 1) {
+      const srcChild = sourceChildren[i];
+      const dstChild = targetChildren[i];
+      if (srcChild && dstChild) {
+        inlineComputedStyles(srcChild, dstChild);
+      }
+    }
+  };
+
+  const buildExportHtmlFromPreview = (title: string) => {
+    const source = document.getElementById('module-content') as HTMLElement | null;
+    if (!source) return '';
+
+    const clone = source.cloneNode(true) as HTMLElement;
+    inlineComputedStyles(source, clone);
+
+    return `<!doctype html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+  <meta charset="utf-8" />
+  <title>${title}</title>
+  <style>
+    @page { size: A4; margin: 12mm; }
+    html, body { margin: 0; padding: 0; background: #fff; }
+    * { box-sizing: border-box; }
+    img { max-width: 100%; height: auto; page-break-inside: avoid; break-inside: avoid; }
+    table, tr, td, p, li, h1, h2, h3, h4 { page-break-inside: avoid; break-inside: avoid; }
+    ul, ol { margin: 0 0 8px 0; }
+    .section-title { page-break-after: avoid; break-after: avoid; }
+    .answer-line { border-bottom: 1px solid #000; min-height: 18px; margin-top: 6px; }
+    .page-break:last-child { break-before: auto; page-break-before: auto; }
+    body > *:last-child { margin-bottom: 0 !important; padding-bottom: 0 !important; }
+  </style>
+</head>
+<body>${clone.outerHTML}</body>
+</html>`;
   };
 
   const handleExportDocx = () => {
-    const content = document.getElementById('module-content')?.innerHTML;
-    if (!content) {
+    const title = header.judulUjian || 'Dokumen Soal';
+    const html = buildExportHtmlFromPreview(title);
+    if (!html) {
       toast.error('Konten dokumen belum tersedia.');
       return;
     }
 
-    const title = header.judulUjian || 'Dokumen Soal';
-    const html = buildExportHtml(title, content);
-
-    const blob = new Blob(['﻿', html], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
-    const url = 'data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;charset=utf-8,' + encodeURIComponent(html);
+    const blob = new Blob(['﻿', html], {
+      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document;charset=utf-8',
+    });
+    const blobUrl = URL.createObjectURL(blob);
     const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = `${title}.docx`;
     document.body.appendChild(link);
-
-    const nav = navigator as any;
-    if (nav.msSaveOrOpenBlob) {
-      nav.msSaveOrOpenBlob(blob, `${title}.docx`);
-    } else {
-      link.href = url;
-      link.download = `${title}.docx`;
-      link.click();
-    }
-
+    link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(blobUrl);
   };
 
   const handleExportPdf = () => {
-    const content = document.getElementById('module-content')?.innerHTML;
-    if (!content) {
+    const title = header.judulUjian || 'Dokumen Soal';
+    const html = buildExportHtmlFromPreview(title);
+    if (!html) {
       toast.error('Konten dokumen belum tersedia.');
       return;
     }
 
-    const title = header.judulUjian || 'Dokumen Soal';
-    const html = buildExportHtml(title, content);
-    const printWindow = window.open('', '_blank');
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '1px';
+    iframe.style.height = '1px';
+    iframe.style.opacity = '0';
+    iframe.style.pointerEvents = 'none';
+    iframe.style.border = '0';
+    iframe.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(iframe);
 
-    if (!printWindow) {
-      toast.error('Popup diblokir browser. Izinkan popup untuk download PDF.');
+    const doc = iframe.contentDocument || iframe.contentWindow?.document;
+    const win = iframe.contentWindow;
+
+    if (!doc || !win) {
+      if (document.body.contains(iframe)) document.body.removeChild(iframe);
+      toast.error('Gagal menyiapkan dokumen PDF.');
       return;
     }
 
-    printWindow.document.open();
-    printWindow.document.write(html);
-    printWindow.document.close();
+    doc.open();
+    doc.write(html);
+    doc.close();
 
-    printWindow.onload = () => {
-      printWindow.focus();
-      printWindow.print();
-      printWindow.close();
+    const cleanup = () => {
+      if (document.body.contains(iframe)) document.body.removeChild(iframe);
     };
+
+    const runPrint = () => {
+      setTimeout(() => {
+        try {
+          win.focus();
+          win.print();
+        } catch (err) {
+          toast.error('PDF gagal diproses. Coba ulangi sekali lagi.');
+        } finally {
+          setTimeout(cleanup, 1500);
+        }
+      }, 250);
+    };
+
+    if (doc.readyState === 'complete') {
+      runPrint();
+    } else {
+      iframe.onload = runPrint;
+    }
   };
 
   return (
@@ -293,7 +302,28 @@ export default function EditorPage() {
             .no-print, nav, footer, button {
               display: none !important;
             }
-            ${buildExportCss()}
+            @page {
+              margin: 1.5cm;
+              size: A4;
+            }
+            #module-content {
+              width: 100% !important;
+              padding: 0 !important;
+              max-width: none !important;
+              margin: 0 !important;
+              font-family: 'Times New Roman', serif !important;
+              font-size: 11pt !important;
+              line-height: 1.15 !important;
+              color: #000000 !important;
+            }
+            .print-content {
+              box-shadow: none !important;
+              border: none !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              min-height: auto !important;
+              overflow: visible !important;
+            }
           }
           .no-scrollbar::-webkit-scrollbar { display: none; }
           .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
