@@ -6,6 +6,7 @@ import { useAuthStore } from '@/store/useAuthStore';
 import { useSearchParams } from 'react-router-dom';
 import { Sparkles, Check, MoreVertical, Image as ImageIcon, ChevronDown, Maximize2, Minimize2, Trash2, ListTodo, AlignLeft, FileText, X, Save, Loader2, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
+import html2pdf from 'html2pdf.js';
 import { Button } from '@/components/ui/Button';
 import { AIGeneratorModal } from '@/components/AIGeneratorModal';
 import { vercelService } from '@/services/vercelService';
@@ -177,12 +178,15 @@ export default function EditorPage() {
       .replace(/\s+/g, ' ')
       .trim();
 
-  const buildDocFileName = () => {
+  const buildExportBaseFileName = () => {
     const kelas = sanitizeFileNamePart(header.kelas || 'Kelas');
     const mapel = sanitizeFileNamePart(header.mataPelajaran || 'Mata Pelajaran');
     const judul = sanitizeFileNamePart(header.judulUjian || 'Dokumen Soal');
-    return `${kelas} - ${mapel} - ${judul}.doc`;
+    return `${kelas} - ${mapel} - ${judul}`;
   };
+
+  const buildDocFileName = () => `${buildExportBaseFileName()}.doc`;
+  const buildPdfFileName = () => `${buildExportBaseFileName()}.pdf`;
 
   const handleExportWord = () => {
     const content = document.getElementById('module-content')?.innerHTML;
@@ -242,6 +246,35 @@ export default function EditorPage() {
     }
 
     document.body.removeChild(downloadLink);
+  };
+
+  const handleExportPdf = async () => {
+    const content = document.getElementById('module-content') as HTMLElement | null;
+    if (!content) {
+      toast.error('Konten dokumen belum tersedia.');
+      return;
+    }
+
+    try {
+      await html2pdf()
+        .set({
+          margin: 1.5,
+          filename: buildPdfFileName(),
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: '#ffffff',
+            scrollX: 0,
+            scrollY: 0,
+          },
+          jsPDF: { unit: 'cm', format: 'a4', orientation: 'portrait' },
+        } as any)
+        .from(content)
+        .save();
+    } catch {
+      toast.error('PDF gagal diproses. Coba ulangi lagi.');
+    }
   };
 
 
@@ -594,6 +627,10 @@ export default function EditorPage() {
                   <button className="p-1.5 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded transition-colors relative" title="Download DOC" onClick={handleExportWord}>
                     <FileText className="w-4 h-4" />
                     <span className="absolute -bottom-1 -right-2 text-[8px] font-bold bg-blue-600 text-white px-1 rounded leading-none">DOC</span>
+                  </button>
+                  <button className="p-1.5 hover:bg-rose-50 dark:hover:bg-rose-900/20 text-rose-600 dark:text-rose-400 rounded transition-colors relative" title="Download PDF" onClick={handleExportPdf}>
+                    <FileText className="w-4 h-4" />
+                    <span className="absolute -bottom-1 -right-2 text-[8px] font-bold bg-rose-600 text-white px-1 rounded leading-none">PDF</span>
                   </button>
                   <button className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 rounded transition-colors tooltip disabled:opacity-50" title="Simpan ke Bank Soal" onClick={handleSaveToBankSoal} disabled={isSavingToBank}>
                     {isSavingToBank ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
