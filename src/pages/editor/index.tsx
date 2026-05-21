@@ -171,6 +171,79 @@ export default function EditorPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const sanitizeFileNamePart = (value: string) =>
+    (value || '')
+      .replace(/[\\/:*?"<>|]+/g, '-')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+  const buildDocFileName = () => {
+    const kelas = sanitizeFileNamePart(header.kelas || 'Kelas');
+    const mapel = sanitizeFileNamePart(header.mataPelajaran || 'Mata Pelajaran');
+    const judul = sanitizeFileNamePart(header.judulUjian || 'Dokumen Soal');
+    return `${kelas} - ${mapel} - ${judul}.doc`;
+  };
+
+  const handleExportWord = () => {
+    const content = document.getElementById('module-content')?.innerHTML;
+    if (!content) {
+      toast.error('Konten dokumen belum tersedia.');
+      return;
+    }
+
+    const documentTitle = header.judulUjian || 'Dokumen Soal';
+    const fileName = buildDocFileName();
+
+    const preHtml = `
+      <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+      <head>
+        <meta charset='utf-8'>
+        <title>${documentTitle}</title>
+        <style>
+          body {
+            font-family: 'Times New Roman', serif;
+            font-size: 11pt;
+            line-height: 1.15;
+            color: #000000;
+          }
+          h2 { font-size: 15pt; font-weight: bold; text-transform: uppercase; margin: 0 0 4px 0; color: #000000; text-align: center; }
+          h3 { font-size: 13pt; font-weight: bold; text-transform: uppercase; margin: 0 0 4px 0; color: #000000; text-align: center; }
+          p { margin: 0 0 8px 0; line-height: 1.15; color: #000000; }
+          ol { margin: 0; padding-left: 22px; }
+          li { margin-bottom: 8px; }
+          img { max-width: 100%; height: auto; }
+          .doc-header-title { text-align: center; margin-bottom: 20px; }
+          .doc-main-title { font-size: 15pt; font-weight: 700; text-transform: uppercase; margin-bottom: 4px; }
+          .doc-subtitle { font-size: 13pt; font-weight: 700; text-transform: uppercase; margin-bottom: 0; }
+          .doc-meta { margin-bottom: 18px; }
+          .section-title { font-size: 12pt; font-weight: 700; margin: 0 0 6px 0; border-bottom: 1px solid #000000; padding-bottom: 2px; }
+          .section-instruction { font-weight: 700; margin: 0 0 10px 0; }
+          .doc-question { margin-bottom: 6px; text-align: justify; white-space: pre-wrap; }
+          .answer-line { border-bottom: 1px solid #000000; min-height: 1.15rem; margin-bottom: 6px; }
+        </style>
+      </head>
+      <body>
+    `;
+    const postHtml = '</body></html>';
+    const html = preHtml + content + postHtml;
+
+    const blob = new Blob(['﻿', html], { type: 'application/msword' });
+    const url = 'data:application/vnd.ms-word;charset=utf-8,' + encodeURIComponent(html);
+    const downloadLink = document.createElement('a');
+    document.body.appendChild(downloadLink);
+
+    const nav = navigator as any;
+    if (nav.msSaveOrOpenBlob) {
+      nav.msSaveOrOpenBlob(blob, fileName);
+    } else {
+      downloadLink.href = url;
+      downloadLink.download = fileName;
+      downloadLink.click();
+    }
+
+    document.body.removeChild(downloadLink);
+  };
+
 
   return (
     <div className="flex flex-col h-full bg-[#F1F5F9] dark:bg-slate-950 font-sans transition-colors duration-300">
@@ -518,6 +591,10 @@ export default function EditorPage() {
               {!isFullscreen && (
                 <>
                   <div className="w-px h-5 bg-slate-300 dark:bg-slate-700 mx-2"></div>
+                  <button className="p-1.5 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded transition-colors relative" title="Download DOC" onClick={handleExportWord}>
+                    <FileText className="w-4 h-4" />
+                    <span className="absolute -bottom-1 -right-2 text-[8px] font-bold bg-blue-600 text-white px-1 rounded leading-none">DOC</span>
+                  </button>
                   <button className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 rounded transition-colors tooltip disabled:opacity-50" title="Simpan ke Bank Soal" onClick={handleSaveToBankSoal} disabled={isSavingToBank}>
                     {isSavingToBank ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                   </button>
