@@ -340,18 +340,89 @@ export default function EditorPage() {
     @page { size: A4; margin: 12mm; }
     html, body { margin: 0; padding: 0; background: #fff; color: #000; font-family: "Times New Roman", serif; font-size: 11pt; line-height: 1.15; }
     * { box-sizing: border-box; }
-    .doc-header-title { text-align: center; margin-bottom: 20px; }
-    .foundation { font-weight: 700; text-transform: uppercase; margin: 0 0 4px 0; }
-    .school-name { font-weight: 700; text-transform: uppercase; font-size: 15pt; margin: 0 0 4px 0; }
-    .divider { border-bottom: 2px solid #000; margin-top: 10px; }
-    .exam-title { text-align: center; margin-bottom: 18px; }
-    .exam-title h3 { font-size: 13pt; margin: 0 0 4px 0; text-transform: uppercase; }
-    .exam-title p { margin: 0; font-weight: 700; text-transform: uppercase; }
-    .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 18px; }
-    .section-title { font-weight: 700; margin: 0 0 8px 0; text-transform: uppercase; }
-    ol { margin: 0; padding-left: 22px; }
+
+    .doc-header-title, .text-center { text-align: center; }
+    .font-bold, .font-semibold, .section-title { font-weight: 700; }
+    .uppercase { text-transform: uppercase; }
+    .whitespace-pre-wrap { white-space: pre-wrap; }
+    .text-justify { text-align: justify; }
+
+    .text-\[15pt\] { font-size: 15pt; }
+    .text-\[13pt\] { font-size: 13pt; }
+
+    .mb-1 { margin-bottom: 4px; }
+    .mb-2 { margin-bottom: 8px; }
+    .mb-3 { margin-bottom: 12px; }
+    .mb-7 { margin-bottom: 18px; }
+    .mb-8 { margin-bottom: 20px; }
+    .mt-3 { margin-top: 10px; }
+
+    .border { border: 1px solid #000; }
+    .border-black { border-color: #000; }
+    .border-b-2 { border-bottom: 2px solid #000; }
+    .rounded-sm { border-radius: 2px; }
+    .p-1 { padding: 2px; }
+
+    .inline-block { display: inline-block; }
+    .w-20 { width: 20mm; }
+    .w-32 { width: 32mm; }
+    .w-5 { width: 5mm; }
+    .max-w-full { max-width: 100%; }
+    .object-contain { object-fit: contain; }
+
+    .space-y-1 > * { margin-top: 0; margin-bottom: 4px; }
+    .space-y-1 > *:last-child { margin-bottom: 0; }
+    .space-y-4 > * { margin-top: 0; margin-bottom: 10px; }
+    .space-y-4 > *:last-child { margin-bottom: 0; }
+
+    .meta-grid,
+    .grid.grid-cols-2 {
+      width: 100%;
+      margin-bottom: 18px;
+      font-size: 0;
+    }
+    .meta-grid > *,
+    .grid.grid-cols-2 > * {
+      display: inline-block;
+      vertical-align: top;
+      width: 49%;
+      font-size: 11pt;
+    }
+
+    .grid.grid-cols-4,
+    .grid.grid-cols-2,
+    .grid.grid-cols-1 {
+      width: 100%;
+      font-size: 0;
+    }
+    .grid.grid-cols-4 > * {
+      display: inline-block;
+      vertical-align: top;
+      width: 24%;
+      font-size: 11pt;
+      margin-right: 1%;
+    }
+    .grid.grid-cols-2 > * {
+      display: inline-block;
+      vertical-align: top;
+      width: 49%;
+      font-size: 11pt;
+      margin-right: 1%;
+    }
+    .grid.grid-cols-1 > * {
+      display: block;
+      width: 100%;
+      font-size: 11pt;
+    }
+
+    .flex { display: table; width: 100%; }
+    .gap-1 > * + * { padding-left: 2mm; }
+    .shrink-0 { white-space: nowrap; }
+
+    ol.list-decimal { margin: 0; padding-left: 22px; }
     li { margin-bottom: 10px; page-break-inside: avoid; break-inside: avoid; }
     img { max-width: 100%; height: auto; page-break-inside: avoid; break-inside: avoid; }
+    body > *:last-child { margin-bottom: 0 !important; padding-bottom: 0 !important; }
   </style>
 </head>
 <body>${content}</body>
