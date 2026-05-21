@@ -322,123 +322,55 @@ export default function EditorPage() {
 </html>`;
   };
 
-  const handleExportWord = () => {
+  const handleExportWord = async () => {
     const title = header.judulUjian || 'Dokumen Soal';
-    const content = document.getElementById('module-content')?.innerHTML;
+    const content = document.getElementById('module-content');
 
     if (!content) {
       toast.error('Konten dokumen belum tersedia.');
       return;
     }
 
-    const html = `<!doctype html>
+    try {
+      const { default: html2canvas } = await import('html2canvas');
+      const canvas = await html2canvas(content, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        scrollX: 0,
+        scrollY: -window.scrollY,
+      });
+
+      const imageDataUrl = canvas.toDataURL('image/png');
+      const html = `<!doctype html>
 <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
 <head>
   <meta charset="utf-8" />
   <title>${escapeHtml(title)}</title>
   <style>
     @page { size: A4; margin: 12mm; }
-    html, body { margin: 0; padding: 0; background: #fff; color: #000; font-family: "Times New Roman", serif; font-size: 11pt; line-height: 1.15; }
-    * { box-sizing: border-box; }
-
-    .doc-header-title, .text-center { text-align: center; }
-    .font-bold, .font-semibold, .section-title { font-weight: 700; }
-    .uppercase { text-transform: uppercase; }
-    .whitespace-pre-wrap { white-space: pre-wrap; }
-    .text-justify { text-align: justify; }
-
-    .text-\[15pt\] { font-size: 15pt; }
-    .text-\[13pt\] { font-size: 13pt; }
-
-    .mb-1 { margin-bottom: 4px; }
-    .mb-2 { margin-bottom: 8px; }
-    .mb-3 { margin-bottom: 12px; }
-    .mb-7 { margin-bottom: 18px; }
-    .mb-8 { margin-bottom: 20px; }
-    .mt-3 { margin-top: 10px; }
-
-    .border { border: 1px solid #000; }
-    .border-black { border-color: #000; }
-    .border-b-2 { border-bottom: 2px solid #000; }
-    .rounded-sm { border-radius: 2px; }
-    .p-1 { padding: 2px; }
-
-    .inline-block { display: inline-block; }
-    .w-20 { width: 20mm; }
-    .w-32 { width: 32mm; }
-    .w-5 { width: 5mm; }
-    .max-w-full { max-width: 100%; }
-    .object-contain { object-fit: contain; }
-
-    .space-y-1 > * { margin-top: 0; margin-bottom: 4px; }
-    .space-y-1 > *:last-child { margin-bottom: 0; }
-    .space-y-4 > * { margin-top: 0; margin-bottom: 10px; }
-    .space-y-4 > *:last-child { margin-bottom: 0; }
-
-    .meta-grid,
-    .grid.grid-cols-2 {
-      width: 100%;
-      margin-bottom: 18px;
-      font-size: 0;
-    }
-    .meta-grid > *,
-    .grid.grid-cols-2 > * {
-      display: inline-block;
-      vertical-align: top;
-      width: 49%;
-      font-size: 11pt;
-    }
-
-    .grid.grid-cols-4,
-    .grid.grid-cols-2,
-    .grid.grid-cols-1 {
-      width: 100%;
-      font-size: 0;
-    }
-    .grid.grid-cols-4 > * {
-      display: inline-block;
-      vertical-align: top;
-      width: 24%;
-      font-size: 11pt;
-      margin-right: 1%;
-    }
-    .grid.grid-cols-2 > * {
-      display: inline-block;
-      vertical-align: top;
-      width: 49%;
-      font-size: 11pt;
-      margin-right: 1%;
-    }
-    .grid.grid-cols-1 > * {
-      display: block;
-      width: 100%;
-      font-size: 11pt;
-    }
-
-    .flex { display: table; width: 100%; }
-    .gap-1 > * + * { padding-left: 2mm; }
-    .shrink-0 { white-space: nowrap; }
-
-    ol.list-decimal { margin: 0; padding-left: 22px; }
-    li { margin-bottom: 10px; page-break-inside: avoid; break-inside: avoid; }
-    img { max-width: 100%; height: auto; page-break-inside: avoid; break-inside: avoid; }
-    body > *:last-child { margin-bottom: 0 !important; padding-bottom: 0 !important; }
+    html, body { margin: 0; padding: 0; background: #fff; }
+    .doc-page { width: 100%; }
+    img { width: 100%; height: auto; display: block; }
   </style>
 </head>
-<body>${content}</body>
+<body><div class="doc-page"><img src="${imageDataUrl}" alt="Dokumen Soal" /></div></body>
 </html>`;
 
-    const blob = new Blob(['﻿', html], {
-      type: 'application/msword;charset=utf-8',
-    });
-    const blobUrl = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = blobUrl;
-    link.download = `${title}.doc`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(blobUrl);
+      const blob = new Blob(['﻿', html], {
+        type: 'application/msword;charset=utf-8',
+      });
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = `${title}.doc`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      toast.error('Export DOC gagal diproses. Coba ulangi sekali lagi.');
+    }
   };
 
   const handleExportPdf = async () => {
@@ -450,20 +382,40 @@ export default function EditorPage() {
     }
 
     try {
-      const module = await import('html2pdf.js');
-      const html2pdf = (module as any).default || (module as any);
+      const { default: html2canvas } = await import('html2canvas');
+      const { jsPDF } = await import('jspdf');
 
-      await html2pdf()
-        .set({
-          margin: [12, 12, 12, 12],
-          filename: `${title}.pdf`,
-          image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
-          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-          pagebreak: { mode: ['css', 'legacy'] },
-        })
-        .from(content)
-        .save();
+      const canvas = await html2canvas(content, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        scrollX: 0,
+        scrollY: -window.scrollY,
+      });
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = 210;
+      const pageHeight = 297;
+      const margin = 12;
+      const usableWidth = pageWidth - margin * 2;
+      const usableHeight = pageHeight - margin * 2;
+
+      const imgHeight = (canvas.height * usableWidth) / canvas.width;
+      let heightLeft = imgHeight;
+      let position = margin;
+
+      pdf.addImage(imgData, 'JPEG', margin, position, usableWidth, imgHeight);
+      heightLeft -= usableHeight;
+
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight + margin;
+        pdf.addPage();
+        pdf.addImage(imgData, 'JPEG', margin, position, usableWidth, imgHeight);
+        heightLeft -= usableHeight;
+      }
+
+      pdf.save(`${title}.pdf`);
     } catch (err) {
       toast.error('PDF gagal diproses. Coba ulangi sekali lagi.');
     }
