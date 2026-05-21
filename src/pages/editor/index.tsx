@@ -443,50 +443,27 @@ export default function EditorPage() {
 
   const handleExportPdf = async () => {
     const title = header.judulUjian || 'Dokumen Soal';
-    const content = document.getElementById('module-content');
+    const content = document.getElementById('module-content') as HTMLElement | null;
     if (!content) {
       toast.error('Konten dokumen belum tersedia.');
       return;
     }
 
-    const exportContainer = document.createElement('div');
-    exportContainer.style.position = 'fixed';
-    exportContainer.style.left = '-10000px';
-    exportContainer.style.top = '0';
-    exportContainer.style.width = '210mm';
-    exportContainer.style.background = '#ffffff';
-    exportContainer.style.padding = '0';
-    exportContainer.style.margin = '0';
-
-    const clonedContent = content.cloneNode(true) as HTMLElement;
-    clonedContent.style.maxWidth = 'none';
-    clonedContent.style.width = '100%';
-    clonedContent.style.margin = '0';
-    clonedContent.style.padding = '15mm';
-    clonedContent.style.fontFamily = '"Times New Roman", serif';
-    clonedContent.style.fontSize = '11pt';
-    clonedContent.style.lineHeight = '1.15';
-    clonedContent.style.color = '#000000';
-
+    const originalStyle = content.getAttribute('style') || '';
     const style = document.createElement('style');
+    style.setAttribute('data-export-pdf-style', 'true');
     style.textContent = `
       * { box-sizing: border-box; }
-      .doc-header-title, .doc-header-title * { line-height: 1.15 !important; }
-      .exam-title, .exam-title * { line-height: 1.15 !important; }
-      ol.list-decimal { margin: 0; padding-left: 24px; }
-      ol.list-decimal > li { margin: 0 0 10px 0; padding-left: 0; }
-      ol.list-decimal > li > p { margin: 0 0 6px 0; display: block; line-height: 1.15; }
-      .grid.grid-cols-4 > div,
-      .grid.grid-cols-2 > div,
-      .grid.grid-cols-1 > div {
-        line-height: 1.15;
-      }
-      img { max-width: 100%; height: auto; }
+      #module-content { margin: 0 !important; padding: 15mm !important; max-width: none !important; width: 210mm !important; background: #fff !important; color: #000 !important; font-family: 'Times New Roman', serif !important; font-size: 11pt !important; line-height: 1.15 !important; }
+      #module-content .doc-header-title, #module-content .doc-header-title * { line-height: 1.15 !important; }
+      #module-content .exam-title, #module-content .exam-title * { line-height: 1.15 !important; }
+      #module-content ol.list-decimal { margin: 0 !important; padding-left: 24px !important; }
+      #module-content ol.list-decimal > li { margin: 0 0 10px 0 !important; padding-left: 0 !important; }
+      #module-content ol.list-decimal > li > p { margin: 0 0 6px 0 !important; display: block !important; line-height: 1.15 !important; }
+      #module-content img { max-width: 100% !important; height: auto !important; }
     `;
 
-    exportContainer.appendChild(style);
-    exportContainer.appendChild(clonedContent);
-    document.body.appendChild(exportContainer);
+    document.head.appendChild(style);
 
     try {
       const module = await import('html2pdf.js');
@@ -501,14 +478,13 @@ export default function EditorPage() {
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
           pagebreak: { mode: ['css', 'legacy'] },
         })
-        .from(exportContainer)
+        .from(content)
         .save();
     } catch (err) {
       toast.error('PDF gagal diproses. Coba ulangi sekali lagi.');
     } finally {
-      if (document.body.contains(exportContainer)) {
-        document.body.removeChild(exportContainer);
-      }
+      content.setAttribute('style', originalStyle);
+      style.remove();
     }
   };
 
