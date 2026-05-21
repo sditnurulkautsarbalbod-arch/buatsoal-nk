@@ -322,21 +322,48 @@ export default function EditorPage() {
 </html>`;
   };
 
-  const handleExportDocx = () => {
+  const handleExportWord = () => {
     const title = header.judulUjian || 'Dokumen Soal';
-    const html = buildDocxExportHtml(title);
-    if (!html) {
+    const content = document.getElementById('module-content')?.innerHTML;
+
+    if (!content) {
       toast.error('Konten dokumen belum tersedia.');
       return;
     }
 
+    const html = `<!doctype html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+  <meta charset="utf-8" />
+  <title>${escapeHtml(title)}</title>
+  <style>
+    @page { size: A4; margin: 12mm; }
+    html, body { margin: 0; padding: 0; background: #fff; color: #000; font-family: "Times New Roman", serif; font-size: 11pt; line-height: 1.15; }
+    * { box-sizing: border-box; }
+    .doc-header-title { text-align: center; margin-bottom: 20px; }
+    .foundation { font-weight: 700; text-transform: uppercase; margin: 0 0 4px 0; }
+    .school-name { font-weight: 700; text-transform: uppercase; font-size: 15pt; margin: 0 0 4px 0; }
+    .divider { border-bottom: 2px solid #000; margin-top: 10px; }
+    .exam-title { text-align: center; margin-bottom: 18px; }
+    .exam-title h3 { font-size: 13pt; margin: 0 0 4px 0; text-transform: uppercase; }
+    .exam-title p { margin: 0; font-weight: 700; text-transform: uppercase; }
+    .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 18px; }
+    .section-title { font-weight: 700; margin: 0 0 8px 0; text-transform: uppercase; }
+    ol { margin: 0; padding-left: 22px; }
+    li { margin-bottom: 10px; page-break-inside: avoid; break-inside: avoid; }
+    img { max-width: 100%; height: auto; page-break-inside: avoid; break-inside: avoid; }
+  </style>
+</head>
+<body>${content}</body>
+</html>`;
+
     const blob = new Blob(['﻿', html], {
-      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document;charset=utf-8',
+      type: 'application/msword;charset=utf-8',
     });
     const blobUrl = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = blobUrl;
-    link.download = `${title}.docx`;
+    link.download = `${title}.doc`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -684,9 +711,9 @@ export default function EditorPage() {
               {!isFullscreen && (
                 <>
                   <div className="w-px h-5 bg-slate-300 dark:bg-slate-700 mx-2"></div>
-                  <button className="p-1.5 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded transition-colors relative" title="Download DOCX" onClick={handleExportDocx}>
+                  <button className="p-1.5 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded transition-colors relative" title="Download DOC" onClick={handleExportWord}>
                     <FileText className="w-4 h-4" />
-                    <span className="absolute -bottom-1 -right-2 text-[8px] font-bold bg-blue-600 text-white px-1 rounded leading-none">DOCX</span>
+                    <span className="absolute -bottom-1 -right-2 text-[8px] font-bold bg-blue-600 text-white px-1 rounded leading-none">DOC</span>
                   </button>
                   <button className="p-1.5 hover:bg-rose-50 dark:hover:bg-rose-900/20 text-rose-600 dark:text-rose-400 rounded transition-colors relative" title="Download PDF" onClick={handleExportPdf}>
                     <FileText className="w-4 h-4" />
