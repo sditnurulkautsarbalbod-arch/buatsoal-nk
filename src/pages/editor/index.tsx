@@ -441,60 +441,31 @@ export default function EditorPage() {
     URL.revokeObjectURL(blobUrl);
   };
 
-  const handleExportPdf = () => {
+  const handleExportPdf = async () => {
     const title = header.judulUjian || 'Dokumen Soal';
-    const html = buildPdfExportHtml(title);
-    if (!html) {
+    const content = document.getElementById('module-content');
+    if (!content) {
       toast.error('Konten dokumen belum tersedia.');
       return;
     }
 
-    const iframe = document.createElement('iframe');
-    iframe.style.position = 'fixed';
-    iframe.style.right = '0';
-    iframe.style.bottom = '0';
-    iframe.style.width = '1px';
-    iframe.style.height = '1px';
-    iframe.style.opacity = '0';
-    iframe.style.pointerEvents = 'none';
-    iframe.style.border = '0';
-    iframe.setAttribute('aria-hidden', 'true');
-    document.body.appendChild(iframe);
+    try {
+      const module = await import('html2pdf.js');
+      const html2pdf = (module as any).default || (module as any);
 
-    const doc = iframe.contentDocument || iframe.contentWindow?.document;
-    const win = iframe.contentWindow;
-
-    if (!doc || !win) {
-      if (document.body.contains(iframe)) document.body.removeChild(iframe);
-      toast.error('Gagal menyiapkan dokumen PDF.');
-      return;
-    }
-
-    doc.open();
-    doc.write(html);
-    doc.close();
-
-    const cleanup = () => {
-      if (document.body.contains(iframe)) document.body.removeChild(iframe);
-    };
-
-    const runPrint = () => {
-      setTimeout(() => {
-        try {
-          win.focus();
-          win.print();
-        } catch (err) {
-          toast.error('PDF gagal diproses. Coba ulangi sekali lagi.');
-        } finally {
-          setTimeout(cleanup, 1500);
-        }
-      }, 250);
-    };
-
-    if (doc.readyState === 'complete') {
-      runPrint();
-    } else {
-      iframe.onload = runPrint;
+      await html2pdf()
+        .set({
+          margin: [12, 12, 12, 12],
+          filename: `${title}.pdf`,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+          pagebreak: { mode: ['css', 'legacy'] },
+        })
+        .from(content)
+        .save();
+    } catch (err) {
+      toast.error('PDF gagal diproses. Coba ulangi sekali lagi.');
     }
   };
 
