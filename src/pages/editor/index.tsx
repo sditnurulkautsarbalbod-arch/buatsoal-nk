@@ -449,23 +449,66 @@ export default function EditorPage() {
       return;
     }
 
+    const exportContainer = document.createElement('div');
+    exportContainer.style.position = 'fixed';
+    exportContainer.style.left = '-10000px';
+    exportContainer.style.top = '0';
+    exportContainer.style.width = '210mm';
+    exportContainer.style.background = '#ffffff';
+    exportContainer.style.padding = '0';
+    exportContainer.style.margin = '0';
+
+    const clonedContent = content.cloneNode(true) as HTMLElement;
+    clonedContent.style.maxWidth = 'none';
+    clonedContent.style.width = '100%';
+    clonedContent.style.margin = '0';
+    clonedContent.style.padding = '15mm';
+    clonedContent.style.fontFamily = '"Times New Roman", serif';
+    clonedContent.style.fontSize = '11pt';
+    clonedContent.style.lineHeight = '1.15';
+    clonedContent.style.color = '#000000';
+
+    const style = document.createElement('style');
+    style.textContent = `
+      * { box-sizing: border-box; }
+      .doc-header-title, .doc-header-title * { line-height: 1.15 !important; }
+      .exam-title, .exam-title * { line-height: 1.15 !important; }
+      ol.list-decimal { margin: 0; padding-left: 24px; }
+      ol.list-decimal > li { margin: 0 0 10px 0; padding-left: 0; }
+      ol.list-decimal > li > p { margin: 0 0 6px 0; display: block; line-height: 1.15; }
+      .grid.grid-cols-4 > div,
+      .grid.grid-cols-2 > div,
+      .grid.grid-cols-1 > div {
+        line-height: 1.15;
+      }
+      img { max-width: 100%; height: auto; }
+    `;
+
+    exportContainer.appendChild(style);
+    exportContainer.appendChild(clonedContent);
+    document.body.appendChild(exportContainer);
+
     try {
       const module = await import('html2pdf.js');
       const html2pdf = (module as any).default || (module as any);
 
       await html2pdf()
         .set({
-          margin: [12, 12, 12, 12],
+          margin: [0, 0, 0, 0],
           filename: `${title}.pdf`,
           image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+          html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', scrollX: 0, scrollY: 0 },
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
           pagebreak: { mode: ['css', 'legacy'] },
         })
-        .from(content)
+        .from(exportContainer)
         .save();
     } catch (err) {
       toast.error('PDF gagal diproses. Coba ulangi sekali lagi.');
+    } finally {
+      if (document.body.contains(exportContainer)) {
+        document.body.removeChild(exportContainer);
+      }
     }
   };
 
