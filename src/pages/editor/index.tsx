@@ -171,322 +171,6 @@ export default function EditorPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const escapeHtml = (value: string) =>
-    String(value || '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-
-  const buildExportBodyHtml = () => {
-    const renderGroups = groupsByType.map(({ type, items: group }) => {
-      if (!group.length) return '';
-
-      const questionsHtml = group.map((q, idx) => {
-        const options = q.options || [];
-        const maxOptionLength = Math.max(...options.map((o: any) => String(o.text || '').length), 0);
-        const isTwoColumns = maxOptionLength >= 20 && maxOptionLength < 45;
-        const reorderedOptions = isTwoColumns
-          ? ['A', 'C', 'B', 'D'].map((id) => options.find((opt: any) => opt.id === id)).filter(Boolean) as Array<{ id: string; text: string }>
-          : options;
-
-        const imageHtml = q.imageUrl
-          ? `<img src="${escapeHtml(String(q.imageUrl))}" alt="Lampiran" style="${q.imageWidth ? `width:${q.imageWidth}cm;` : ''}${q.imageHeight ? `height:${q.imageHeight}cm;` : ''}max-width:100%;object-fit:contain;border:1px solid #e2e8f0;padding:2px;border-radius:2px;margin:8px 0 12px 0;" />`
-          : '';
-
-        const optionsHtml = q.type === 'pg' && reorderedOptions.length > 0
-          ? `<div class="options-grid ${maxOptionLength < 20 ? 'cols-4' : isTwoColumns ? 'cols-2' : 'cols-1'}">${reorderedOptions
-              .map((opt: any) => `<div class="option-item"><span class="option-id">${escapeHtml(opt.id)}.</span><span>${escapeHtml(opt.text || '-')}</span></div>`)
-              .join('')}</div>`
-          : '';
-
-        const answerHtml = '';
-
-        return `<li><p class="question-text">${escapeHtml(q.text || `Soal ${idx + 1}`)}</p>${imageHtml}${optionsHtml}${answerHtml}</li>`;
-      }).join('');
-
-      return `<section class="group-section"><p class="section-title">${escapeHtml(typeLabels[type])}</p><p class="section-instruction">${escapeHtml(typeInstructions[type])}</p><ol>${questionsHtml}</ol></section>`;
-    }).join('');
-
-    return `<div id="module-content" class="export-root">
-      <div class="doc-header-title">
-        ${header.foundationName ? `<p class="foundation">${escapeHtml(header.foundationName)}</p>` : ''}
-        <h2 class="school-name">${escapeHtml(header.schoolName || 'NAMA SEKOLAH')}</h2>
-        ${header.schoolAddress ? `<p>${escapeHtml(header.schoolAddress)}</p>` : ''}
-        ${header.schoolContact ? `<p>${escapeHtml(header.schoolContact)}</p>` : ''}
-        <div class="divider"></div>
-      </div>
-
-      <div class="exam-title">
-        <h3>${escapeHtml(header.judulUjian || 'JUDUL UJIAN')}</h3>
-        <p>TAHUN AJARAN ${escapeHtml(header.tahunAjaran || '-')}</p>
-      </div>
-
-      <div class="meta-grid">
-        <div>
-          <p><span class="meta-label">Mata Pelajaran</span>: ${escapeHtml(header.mataPelajaran || '-')}</p>
-          <p><span class="meta-label">Kelas</span>: ${escapeHtml(header.kelas || '-')}</p>
-        </div>
-        <div>
-          <p><span class="meta-label short">Nama</span>: _____________________</p>
-          <p><span class="meta-label short">Waktu</span>: ${escapeHtml(header.waktu || '-')}</p>
-        </div>
-      </div>
-
-      ${renderGroups}
-    </div>`;
-  };
-
-  const buildDocxExportHtml = (title: string) => {
-    const bodyHtml = buildExportBodyHtml();
-    return `<!doctype html>
-<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
-<head>
-  <meta charset="utf-8" />
-  <title>${escapeHtml(title)}</title>
-  <style>
-    @page { size: A4; margin: 12mm; }
-    html, body { margin: 0; padding: 0; background: #fff; color: #000; font-family: "Times New Roman", serif; font-size: 11pt; line-height: 1.15; }
-    * { box-sizing: border-box; }
-    .export-root { width: 100%; max-width: none; margin: 0; padding: 0; }
-    .doc-header-title { text-align: center; margin-bottom: 20px; }
-    .foundation { font-weight: 700; text-transform: uppercase; margin: 0 0 4px 0; }
-    .school-name { font-weight: 700; text-transform: uppercase; font-size: 15pt; margin: 0 0 4px 0; }
-    .divider { border-bottom: 2px solid #000; margin-top: 10px; }
-    .exam-title { text-align: center; margin-bottom: 18px; }
-    .exam-title h3 { font-size: 13pt; margin: 0 0 4px 0; text-transform: uppercase; }
-    .exam-title p { margin: 0; font-weight: 700; text-transform: uppercase; }
-    .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 18px; }
-    .meta-label { display: inline-block; width: 32mm; }
-    .meta-label.short { width: 20mm; }
-    .group-section { margin-bottom: 16px; page-break-inside: avoid; break-inside: avoid; }
-    .section-title { font-weight: 700; margin: 0 0 8px 0; text-transform: uppercase; page-break-after: avoid; break-after: avoid; }
-    .section-instruction { margin: 0 0 10px 0; font-weight: 700; }
-    ol { margin: 0; padding-left: 22px; }
-    li { margin-bottom: 10px; page-break-inside: avoid; break-inside: avoid; }
-    .question-text { margin: 0 0 6px 0; white-space: pre-wrap; text-align: justify; }
-    img { max-width: 100%; height: auto; page-break-inside: avoid; break-inside: avoid; }
-    .options-grid { display: grid; gap: 6px; margin: 0 0 6px 0; }
-    .options-grid.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-    .options-grid.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .options-grid.cols-1 { grid-template-columns: 1fr; }
-    .option-item { display: flex; gap: 4px; }
-    .option-id { font-weight: 700; width: 14px; flex-shrink: 0; }
-    body > *:last-child { margin-bottom: 0 !important; padding-bottom: 0 !important; }
-  </style>
-</head>
-<body>${bodyHtml}</body>
-</html>`;
-  };
-
-  const buildPdfExportHtml = (title: string) => {
-    const bodyHtml = buildExportBodyHtml();
-    return `<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <title>${escapeHtml(title)}</title>
-  <style>
-    @page { size: A4; margin: 12mm; }
-    html, body { margin: 0; padding: 0; background: #fff; color: #000; font-family: "Times New Roman", serif; font-size: 11pt; line-height: 1.15; }
-    * { box-sizing: border-box; }
-    .export-root { width: 100%; max-width: none; margin: 0; padding: 0; }
-    .doc-header-title { text-align: center; margin-bottom: 20px; }
-    .foundation { font-weight: 700; text-transform: uppercase; margin: 0 0 4px 0; }
-    .school-name { font-weight: 700; text-transform: uppercase; font-size: 15pt; margin: 0 0 4px 0; }
-    .divider { border-bottom: 2px solid #000; margin-top: 10px; }
-    .exam-title { text-align: center; margin-bottom: 18px; }
-    .exam-title h3 { font-size: 13pt; margin: 0 0 4px 0; text-transform: uppercase; }
-    .exam-title p { margin: 0; font-weight: 700; text-transform: uppercase; }
-    .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 18px; }
-    .meta-label { display: inline-block; width: 32mm; }
-    .meta-label.short { width: 20mm; }
-    .group-section { margin-bottom: 16px; page-break-inside: avoid; break-inside: avoid; }
-    .section-title { font-weight: 700; margin: 0 0 8px 0; text-transform: uppercase; page-break-after: avoid; break-after: avoid; }
-    .section-instruction { margin: 0 0 10px 0; font-weight: 700; }
-    ol { margin: 0; padding-left: 22px; }
-    li { margin-bottom: 10px; page-break-inside: avoid; break-inside: avoid; }
-    .question-text { margin: 0 0 6px 0; white-space: pre-wrap; text-align: justify; }
-    img { max-width: 100%; height: auto; page-break-inside: avoid; break-inside: avoid; }
-    .options-grid { display: grid; gap: 6px; margin: 0 0 6px 0; }
-    .options-grid.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-    .options-grid.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .options-grid.cols-1 { grid-template-columns: 1fr; }
-    .option-item { display: flex; gap: 4px; }
-    .option-id { font-weight: 700; width: 14px; flex-shrink: 0; }
-    body > *:last-child { margin-bottom: 0 !important; padding-bottom: 0 !important; }
-  </style>
-</head>
-<body>${bodyHtml}</body>
-</html>`;
-  };
-
-  const handleExportWord = () => {
-    const title = header.judulUjian || 'Dokumen Soal';
-    const content = document.getElementById('module-content')?.innerHTML;
-
-    if (!content) {
-      toast.error('Konten dokumen belum tersedia.');
-      return;
-    }
-
-    const html = `<!doctype html>
-<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
-<head>
-  <meta charset="utf-8" />
-  <title>${escapeHtml(title)}</title>
-  <style>
-    @page { size: A4; margin: 12mm; }
-    html, body { margin: 0; padding: 0; background: #fff; color: #000; font-family: "Times New Roman", serif; font-size: 11pt; line-height: 1.15; }
-    * { box-sizing: border-box; }
-
-    .doc-header-title, .text-center { text-align: center; }
-    .font-bold, .font-semibold, .section-title { font-weight: 700; }
-    .uppercase { text-transform: uppercase; }
-    .whitespace-pre-wrap { white-space: pre-wrap; }
-    .text-justify { text-align: justify; }
-
-    .text-\[15pt\] { font-size: 15pt; }
-    .text-\[13pt\] { font-size: 13pt; }
-
-    .mb-1 { margin-bottom: 4px; }
-    .mb-2 { margin-bottom: 8px; }
-    .mb-3 { margin-bottom: 12px; }
-    .mb-7 { margin-bottom: 18px; }
-    .mb-8 { margin-bottom: 20px; }
-    .mt-3 { margin-top: 10px; }
-
-    .border { border: 1px solid #000; }
-    .border-black { border-color: #000; }
-    .border-b-2 { border-bottom: 2px solid #000; }
-    .rounded-sm { border-radius: 2px; }
-    .p-1 { padding: 2px; }
-
-    .inline-block { display: inline-block; }
-    .w-20 { width: 20mm; }
-    .w-32 { width: 32mm; }
-    .w-5 { width: 5mm; }
-    .max-w-full { max-width: 100%; }
-    .object-contain { object-fit: contain; }
-
-    .space-y-1 > * { margin-top: 0; margin-bottom: 4px; }
-    .space-y-1 > *:last-child { margin-bottom: 0; }
-    .space-y-4 > * { margin-top: 0; margin-bottom: 10px; }
-    .space-y-4 > *:last-child { margin-bottom: 0; }
-
-    .meta-grid,
-    .grid.grid-cols-2 {
-      width: 100%;
-      margin-bottom: 18px;
-      font-size: 0;
-    }
-    .meta-grid > *,
-    .grid.grid-cols-2 > * {
-      display: inline-block;
-      vertical-align: top;
-      width: 49%;
-      font-size: 11pt;
-    }
-
-    .grid.grid-cols-4,
-    .grid.grid-cols-2,
-    .grid.grid-cols-1 {
-      width: 100%;
-      font-size: 0;
-    }
-    .grid.grid-cols-4 > * {
-      display: inline-block;
-      vertical-align: top;
-      width: 24%;
-      font-size: 11pt;
-      margin-right: 1%;
-    }
-    .grid.grid-cols-2 > * {
-      display: inline-block;
-      vertical-align: top;
-      width: 49%;
-      font-size: 11pt;
-      margin-right: 1%;
-    }
-    .grid.grid-cols-1 > * {
-      display: block;
-      width: 100%;
-      font-size: 11pt;
-    }
-
-    .flex { display: table; width: 100%; }
-    .gap-1 > * + * { padding-left: 2mm; }
-    .shrink-0 { white-space: nowrap; }
-
-    ol.list-decimal { margin: 0; padding-left: 22px; }
-    li { margin-bottom: 10px; page-break-inside: avoid; break-inside: avoid; }
-    img { max-width: 100%; height: auto; page-break-inside: avoid; break-inside: avoid; }
-    body > *:last-child { margin-bottom: 0 !important; padding-bottom: 0 !important; }
-  </style>
-</head>
-<body>${content}</body>
-</html>`;
-
-    const blob = new Blob(['﻿', html], {
-      type: 'application/msword;charset=utf-8',
-    });
-    const blobUrl = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = blobUrl;
-    link.download = `${title}.doc`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(blobUrl);
-  };
-
-  const handleExportPdf = async () => {
-    const title = header.judulUjian || 'Dokumen Soal';
-    const content = document.getElementById('module-content') as HTMLElement | null;
-    if (!content) {
-      toast.error('Konten dokumen belum tersedia.');
-      return;
-    }
-
-    const originalStyle = content.getAttribute('style') || '';
-    const style = document.createElement('style');
-    style.setAttribute('data-export-pdf-style', 'true');
-    style.textContent = `
-      * { box-sizing: border-box; }
-      #module-content { margin: 0 !important; padding: 15mm !important; max-width: none !important; width: 210mm !important; background: #fff !important; color: #000 !important; font-family: 'Times New Roman', serif !important; font-size: 11pt !important; line-height: 1.15 !important; }
-      #module-content .doc-header-title, #module-content .doc-header-title * { line-height: 1.15 !important; }
-      #module-content .exam-title, #module-content .exam-title * { line-height: 1.15 !important; }
-      #module-content ol.list-decimal { margin: 0 !important; padding-left: 24px !important; }
-      #module-content ol.list-decimal > li { margin: 0 0 10px 0 !important; padding-left: 0 !important; }
-      #module-content ol.list-decimal > li > p { margin: 0 0 6px 0 !important; display: block !important; line-height: 1.15 !important; }
-      #module-content img { max-width: 100% !important; height: auto !important; }
-    `;
-
-    document.head.appendChild(style);
-
-    try {
-      const module = await import('html2pdf.js');
-      const html2pdf = (module as any).default || (module as any);
-
-      await html2pdf()
-        .set({
-          margin: [0, 0, 0, 0],
-          filename: `${title}.pdf`,
-          image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', scrollX: 0, scrollY: 0 },
-          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-          pagebreak: { mode: ['css', 'legacy'] },
-        })
-        .from(content)
-        .save();
-    } catch (err) {
-      toast.error('PDF gagal diproses. Coba ulangi sekali lagi.');
-    } finally {
-      content.setAttribute('style', originalStyle);
-      style.remove();
-    }
-  };
 
   return (
     <div className="flex flex-col h-full bg-[#F1F5F9] dark:bg-slate-950 font-sans transition-colors duration-300">
@@ -521,6 +205,68 @@ export default function EditorPage() {
           }
           .no-scrollbar::-webkit-scrollbar { display: none; }
           .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+          #module-content {
+            font-family: 'Times New Roman', serif;
+            font-size: 11pt;
+            line-height: 1.15;
+            color: #000000;
+          }
+
+          #module-content .doc-header-title {
+            text-align: center;
+            margin-bottom: 1.8rem;
+          }
+
+          #module-content .doc-main-title {
+            font-size: 15pt;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 0.25rem;
+            letter-spacing: 0.01em;
+          }
+
+          #module-content .doc-subtitle {
+            font-size: 13pt;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 0;
+            letter-spacing: 0.01em;
+          }
+
+          #module-content .doc-meta {
+            margin-bottom: 1.7rem;
+          }
+
+          #module-content .doc-meta p,
+          #module-content ol,
+          #module-content li,
+          #module-content .doc-question {
+            font-size: 11pt;
+            line-height: 1.15;
+            color: #000000;
+          }
+
+          #module-content .section-title {
+            font-size: 12pt;
+            font-weight: 700;
+            margin-top: 0;
+            margin-bottom: 0.35rem;
+            border-bottom: 1px solid #000000;
+            padding-bottom: 0.2rem;
+            letter-spacing: 0.01em;
+          }
+
+          #module-content .section-instruction {
+            font-weight: 700;
+            margin-bottom: 0.75rem;
+          }
+
+          #module-content .answer-line {
+            border-bottom: 1px solid #000000;
+            min-height: 1.15rem;
+            margin-bottom: 0.4rem;
+          }
         `}
       </style>
 
@@ -772,14 +518,6 @@ export default function EditorPage() {
               {!isFullscreen && (
                 <>
                   <div className="w-px h-5 bg-slate-300 dark:bg-slate-700 mx-2"></div>
-                  <button className="p-1.5 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded transition-colors relative" title="Download DOC" onClick={handleExportWord}>
-                    <FileText className="w-4 h-4" />
-                    <span className="absolute -bottom-1 -right-2 text-[8px] font-bold bg-blue-600 text-white px-1 rounded leading-none">DOC</span>
-                  </button>
-                  <button className="p-1.5 hover:bg-rose-50 dark:hover:bg-rose-900/20 text-rose-600 dark:text-rose-400 rounded transition-colors relative" title="Download PDF" onClick={handleExportPdf}>
-                    <FileText className="w-4 h-4" />
-                    <span className="absolute -bottom-1 -right-1 text-[8px] font-bold bg-rose-600 text-white px-1 rounded leading-none">PDF</span>
-                  </button>
                   <button className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 rounded transition-colors tooltip disabled:opacity-50" title="Simpan ke Bank Soal" onClick={handleSaveToBankSoal} disabled={isSavingToBank}>
                     {isSavingToBank ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                   </button>
@@ -795,20 +533,20 @@ export default function EditorPage() {
           <div className="flex-1 overflow-y-auto w-full p-4 md:p-8 flex flex-col items-center justify-start no-scrollbar">
             <div className="bg-white rounded shadow-2xl overflow-visible print-content min-h-[29.7cm] relative w-full max-w-[950px]">
               <div id="module-content" className="p-6 md:p-14 leading-[1.15] max-w-[21cm] mx-auto bg-white text-black" style={{ fontFamily: '"Times New Roman", serif', fontSize: '11pt', lineHeight: '1.15' }}>
-                <div className="doc-header-title text-center mb-8">
+                <div className="doc-header-title">
                   {header.foundationName && <p className="font-bold uppercase mb-1">{header.foundationName}</p>}
-                  <h2 className="font-bold uppercase text-[15pt] mb-1">{header.schoolName || 'NAMA SEKOLAH'}</h2>
+                  <h2 className="doc-main-title">{header.schoolName || 'NAMA SEKOLAH'}</h2>
                   {header.schoolAddress && <p className="mb-1">{header.schoolAddress}</p>}
                   {header.schoolContact && <p>{header.schoolContact}</p>}
                   <div className="border-b-2 border-black mt-3" />
                 </div>
 
                 <div className="text-center mb-7">
-                  <h3 className="font-bold uppercase text-[13pt]">{header.judulUjian || 'JUDUL UJIAN'}</h3>
+                  <h3 className="doc-subtitle">{header.judulUjian || 'JUDUL UJIAN'}</h3>
                   <p className="font-bold uppercase">TAHUN AJARAN {header.tahunAjaran || '-'}</p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-10 mb-8">
+                <div className="grid grid-cols-2 gap-10 doc-meta">
                   <div className="space-y-1">
                     <p><span className="inline-block w-32">Mata Pelajaran</span>: {header.mataPelajaran || '-'}</p>
                     <p><span className="inline-block w-32">Kelas</span>: {header.kelas || '-'}</p>
@@ -824,7 +562,7 @@ export default function EditorPage() {
                   return (
                     <div key={type} className="mb-7">
                       <p className="section-title">{typeLabels[type]}</p>
-                      <p className="font-bold mb-3">{typeInstructions[type]}</p>
+                      <p className="section-instruction">{typeInstructions[type]}</p>
                       <ol className="list-decimal pl-6 space-y-4">
                         {group.map((q, idx) => {
                           const maxOptionLength = Math.max(...((q.options || []).map((o: any) => String(o.text || '').length)), 0);
@@ -835,7 +573,7 @@ export default function EditorPage() {
 
                           return (
                             <li key={q.id} value={idx + 1}>
-                              <p className="whitespace-pre-wrap text-justify mb-2">{q.text || `Soal ${idx + 1}`}</p>
+                              <p className="doc-question whitespace-pre-wrap text-justify mb-2">{q.text || `Soal ${idx + 1}`}</p>
                               {q.imageUrl && <img src={q.imageUrl} alt="Lampiran" style={{ width: q.imageWidth ? `${q.imageWidth}cm` : 'auto', height: q.imageHeight ? `${q.imageHeight}cm` : 'auto' }} className="max-w-full object-contain border border-slate-200 p-1 rounded-sm mb-3" />}
                               {q.type === 'pg' && reorderedOptions.length > 0 && (
                                 <div className={`grid gap-2 mb-2 ${maxOptionLength < 20 ? 'grid-cols-4' : isTwoColumns ? 'grid-cols-2' : 'grid-cols-1'}`}>
